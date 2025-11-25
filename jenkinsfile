@@ -6,13 +6,12 @@ pipeline {
 
     // 2. 환경 변수 설정: Ansible 실행에 필요한 변수를 정의합니다.
     environment {
-        // NOTE: 실제 키 파일 이름과 Jenkins Credential ID를 사용해야 합니다.
-        // ssh-credentials-id는 Jenkins에 등록된 SSH 자격증명 ID입니다.
-        ANSIBLE_SSH_CREDENTIALS = 'ansible_user_key'
-        ANSIBLE_INVENTORY_FILE = 'inventory' // 대부분의 프로젝트가 사용하는 인벤토리 파일 이름
+        // Jenkins Credential ID (ansible 유저의 SSH 개인 키)
+        ANSIBLE_SSH_CREDENTIALS = 'ansible_user_key' 
+        ANSIBLE_INVENTORY_FILE = 'inventory'
     }
 
-    // 3. 옵션 설정: Git 클론 등 파이프라인의 전역 옵션을 정의합니다.
+    // 3. 옵션 설정
     options {
         // 이전 빌드 결과와 관계없이 workspace를 정리 (권장)
         skipDefaultCheckout()
@@ -28,47 +27,27 @@ pipeline {
             }
         }
 
-        // 1. K8s 기본 설치/설정 (ansible/ 디렉토리)
-        stage('Run Base K8s Setup') {
+        // 5. Ansible 배포 단계: sshagent 블록으로 모든 Ansible 실행을 감쌈
+        stage('Ansible Deployment') {
             steps {
-                sh """
-                echo "Running K8s Base Setup from ansible/k8s-playbook.yaml"
-                sudo -u ansible ansible-playbook -i ansible/${ANSIBLE_INVENTORY_FILE} ansible/k8s-playbook.yaml \
-                    --key-file /home/ansible/.ssh/${ANSIBLE_SSH_CREDENTIALS}
-                """
-            }
-        }
+                // Jenkins Credential ID에 해당하는 키를 메모리(SSH Agent)에 로드합니다.
+                sshagent(credentials: ["${ANSIBLE_SSH_CREDENTIALS}"]) {
+                    sh """
+                    # sudo -u ansible로 권한을 전환하고, --key-file 없이 Ansible 실행
+                    
+                    echo "--- 1. Running K8s Base Setup ---"
+                    sudo -u ansible ansible-playbook -i ansible/${ANSIBLE_INVENTORY_FILE} ansible/k8s-playbook.yaml
 
-        // 2. MetalLB 설치/설정 (ansible-metallb/ 디렉토리)
-        stage('Run MetalLB Setup') {
-            steps {
-                sh """
-                echo "Running MetalLB Setup from ansible-metallb/k8s-playbook.yaml"
-                sudo -u ansible ansible-playbook -i ansible-metallb/${ANSIBLE_INVENTORY_FILE} ansible-metallb/metallb-playbook.yaml \
-                    --key-file /home/ansible/.ssh/${ANSIBLE_SSH_CREDENTIALS}
-                """
-            }
-        }
+                    echo "--- 2. Running MetalLB Setup ---"
+                    sudo -u ansible ansible-playbook -i ansible-metallb/${ANSIBLE_INVENTORY_FILE} ansible-metallb/metallb-playbook.yaml
 
-        // 3. WAF 설치/설정 (ansible-waf/ 디렉토리)
-        stage('Run WAF Setup') {
-            steps {
-                sh """
-                echo "Running WAF Setup from ansible-waf/waf-playbook.yaml"
-                sudo -u ansible ansible-playbook -i ansible-waf/${ANSIBLE_INVENTORY_FILE} ansible-waf/waf-playbook.yaml \
-                    --key-file /home/ansible/.ssh/${ANSIBLE_SSH_CREDENTIALS}
-                """
-            }
-        }
+                    echo "--- 3. Running WAF Setup ---"
+                    sudo -u ansible ansible-playbook -i ansible-waf/${ANSIBLE_INVENTORY_FILE} ansible-waf/waf-playbook.yaml
 
-        // 4. Monitoring 설치/설정 (ansible-monitoring/ 디렉토리)
-        stage('Run Monitoring Setup') {
-            steps {
-                sh """
-                echo "Running Monitoring Setup from ansible-monitoring/site.yml"
-                sudo -u ansible ansible-playbook -i ansible-monitoring/${ANSIBLE_INVENTORY_FILE} ansible-monitoring/site.yml \
-                    --key-file /home/ansible/.ssh/${ANSIBLE_SSH_CREDENTIALS}
-                """
+                    echo "--- 4. Running Monitoring Setup ---"
+                    sudo -u ansible ansible-playbook -i ansible-monitoring/${ANSIBLE_INVENTORY_FILE} ansible-monitoring/site.yml
+                    """
+                }
             }
         }
     }
