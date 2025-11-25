@@ -1,0 +1,91 @@
+// Jenkinsfile (Declarative Pipeline)
+
+pipeline {
+    // 1. 에이전트 설정: 파이프라인이 실행될 Jenkins 에이전트를 지정합니다.
+    agent any
+
+    // 2. 환경 변수 설정: Ansible 실행에 필요한 변수를 정의합니다.
+    environment {
+        // NOTE: 실제 키 파일 이름과 Jenkins Credential ID를 사용해야 합니다.
+        // ssh-credentials-id는 Jenkins에 등록된 SSH 자격증명 ID입니다.
+        ANSIBLE_SSH_CREDENTIALS = 'ansible_user_key'
+        ANSIBLE_INVENTORY_FILE = 'inventory' // 대부분의 프로젝트가 사용하는 인벤토리 파일 이름
+    }
+
+    // 3. 옵션 설정: Git 클론 등 파이프라인의 전역 옵션을 정의합니다.
+    options {
+        // 빌드 상태를 GitHub에 보고하도록 설정 (필요시)
+        githubChecks()
+        // 이전 빌드 결과와 관계없이 workspace를 정리 (권장)
+        skipDefaultCheckout()
+    }
+
+    // 4. 파이프라인 실행 단계
+    stages {
+        // Git 저장소에서 Ansible 프로젝트 파일들을 가져오는 단계
+        stage('Checkout Code') {
+            steps {
+                // 저장소 URL 및 브랜치 정보를 Jenkins Job 설정에서 가져옵니다.
+                checkout scm
+            }
+        }
+
+        // 1. K8s 기본 설치/설정 (ansible/ 디렉토리)
+        stage('Run Base K8s Setup') {
+            steps {
+                sh """
+                echo "Running K8s Base Setup from ansible/k8s-playbook.yaml"
+                sudo -u ansible ansible-playbook -i ansible/${ANSIBLE_INVENTORY_FILE} ansible/k8s-playbook.yaml \
+                    --key-file /home/ansible/.ssh/${ANSIBLE_SSH_CREDENTIALS}
+                """
+            }
+        }
+
+        // 2. MetalLB 설치/설정 (ansible-metallb/ 디렉토리)
+        stage('Run MetalLB Setup') {
+            steps {
+                sh """
+                echo "Running MetalLB Setup from ansible-metallb/k8s-playbook.yaml"
+                sudo -u ansible ansible-playbook -i ansible-metallb/${ANSIBLE_INVENTORY_FILE} ansible-metallb/metallb-playbook.yaml \
+                    --key-file /home/ansible/.ssh/${ANSIBLE_SSH_CREDENTIALS}
+                """
+            }
+        }
+
+        // 3. WAF 설치/설정 (ansible-waf/ 디렉토리)
+        stage('Run WAF Setup') {
+            steps {
+                sh """
+                echo "Running WAF Setup from ansible-waf/waf-playbook.yaml"
+                sudo -u ansible ansible-playbook -i ansible-waf/${ANSIBLE_INVENTORY_FILE} ansible-waf/waf-playbook.yaml \
+                    --key-file /home/ansible/.ssh/${ANSIBLE_SSH_CREDENTIALS}
+                """
+            }
+        }
+
+        // 4. Monitoring 설치/설정 (ansible-monitoring/ 디렉토리)
+        stage('Run Monitoring Setup') {
+            steps {
+                sh """
+                echo "Running Monitoring Setup from ansible-monitoring/site.yml"
+                sudo -u ansible ansible-playbook -i ansible-monitoring/${ANSIBLE_INVENTORY_FILE} ansible-monitoring/site.yml \
+                    --key-file /home/ansible/.ssh/${ANSIBLE_SSH_CREDENTIALS}
+                """
+            }
+        }
+    }
+
+    // 5. 후처리 단계: 빌드가 성공 또는 실패했을 때 알림을 보냅니다.
+    post {
+        always {
+            // 빌드 성공/실패 여부에 관계없이 실행
+            echo "Ansible Pipeline finished."
+        }
+        success {
+            echo "Deployment successful! 🚀"
+        }
+        failure {
+            echo "Deployment failed! Check logs. ❌"
+        }
+    }
+}
