@@ -17,12 +17,12 @@
   when: inventory_hostname in groups['all_k8s']
 
 # 4. Kubernetes 패키지 설치 및 kubectl 환경 설정
-- name: "Include Kubernetes setup tasks"
-  ansible.builtin.include_tasks: kubernetes_setup.yaml
-  when: inventory_hostname in groups['all_k8s']
+#- name: "Include Kubernetes setup tasks"
+#  ansible.builtin.include_tasks: kubernetes_setup.yaml
+#  when: inventory_hostname in groups['all_k8s']
 
 # 5. kubeadm init / join (ControlPlane + Worker 포함)
-- name: "Include K8s init/join tasks"
-  ansible.builtin.include_tasks: k8s_init.yaml
-  when: inventory_hostname in groups['control_plane'] + groups['worker_node']
+#- name: "Include K8s init/join tasks"
+#  ansible.builtin.include_tasks: k8s_init.yaml
+#  when: inventory_hostname in groups['control_plane'] + groups['worker_node']
 
