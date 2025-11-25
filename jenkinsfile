@@ -14,8 +14,6 @@ pipeline {
 
     // 3. 옵션 설정: Git 클론 등 파이프라인의 전역 옵션을 정의합니다.
     options {
-        // 빌드 상태를 GitHub에 보고하도록 설정 (필요시)
-        githubChecks()
         // 이전 빌드 결과와 관계없이 workspace를 정리 (권장)
         skipDefaultCheckout()
     }
