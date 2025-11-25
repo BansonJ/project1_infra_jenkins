@@ -1,0 +1,24 @@
+# waf/tasks/install_build_packages.yaml
+---
+- name: Load build package variables
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/vars/install_build_packages_vars.yaml"
+
+- name: Enable EPEL repository
+  ansible.builtin.dnf:
+    name: epel-release
+    state: present
+
+- name: Make DNF metadata cache
+  ansible.builtin.command: dnf makecache
+  changed_when: false
+
+- name: Install build related packages
+  ansible.builtin.dnf:
+    name: "{{ build_packages }}"
+    state: present
+
+- name: Install Development Tools group
+  ansible.builtin.dnf:
+    name: "@Development Tools"
+    state: present

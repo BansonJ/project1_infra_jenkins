@@ -1,0 +1,54 @@
+---
+# ================================================
+# 전역 변수 (환경/버전/경로/계정 등)
+# ================================================
+
+# === MinIO 환경 설정 ===
+minio_server_ip: "172.16.6.132"   # MinIO VM IP
+minio_api_port: "9000"
+minio_console_port: "9001"
+
+# === MinIO 계정/보안 정보 ===
+# * 실무에서는 반드시 Ansible Vault로 암호화할 것
+minio_root_user: "minio"
+minio_root_password: "soldesk1."
+minio_bucket_name: "loki"
+
+# === 디렉토리 경로 ===
+base_monitoring_dir: "/opt/monitoring"
+base_minio_dir: "/opt/minio"
+
+# === 컨테이너 이미지 버전 ===
+image_prometheus: "prom/prometheus:v2.54.0"
+image_loki: "grafana/loki:2.9.0"
+image_grafana: "grafana/grafana:11.1.0"
+image_minio: "quay.io/minio/minio"
+
+# === Docker 네트워크 이름 ===
+docker_network_name: "monitoring-net"
+
+# === K8s kubeconfig 경로 및 번들 파일 경로 ===
+k8s_kubeconfig_path: "/home/kubeuser/.kube/config"
+k8s_monitoring_bundle_src: "k8s-monitoring-bundle.yaml"
+k8s_monitoring_bundle_dest: "/tmp/k8s-monitoring-bundle.yaml"
+
+# === SELinux 설정 (CentOS minimal 기준) ===
+selinux_state: permissive
+selinux_policy: targeted
+
+# === firewalld 포트 (monitoring / minio)
+# - 3000 : Grafana
+# - 3100 : Loki
+# - 9090 : Prometheus
+# - 9000 : MinIO API
+# - 9001 : MinIO Console
+# - 9100 : (여유분, 필요시 node-exporter용)
+# - 31021: kube-state-metrics NodePort (필요시)
+firewalld_ports:
+  - "3000"
+  - "3100"
+  - "9090"
+  - "9000"
+  - "9001"
+  - "9100"
+  - "31021"

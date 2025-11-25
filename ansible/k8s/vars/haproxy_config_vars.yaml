@@ -1,0 +1,21 @@
+---
+# HAProxy 관련 변수
+
+haproxy_package: "haproxy"
+haproxy_config_src: "haproxy.cfg.j2"
+haproxy_config_dest: "/etc/haproxy/haproxy.cfg"
+haproxy_config_owner: "root"
+haproxy_config_group: "haproxy"
+haproxy_config_mode: "0640"
+
+haproxy_service_name: "haproxy"
+haproxy_service_state: "started"
+haproxy_service_enabled: true
+
+# LB IP (외부 클라이언트가 붙는 HAProxy IP)
+lb_ip: "172.16.6.88"
+
+# HAProxy 템플릿에서 for loop 돌릴 ControlPlane 호스트 목록
+control_plane_hosts: "{{ groups['control_plane'] }}"
+
+# kube_user는 K8s 쪽에서 사용 (이 파일에 안 넣어도 됨)

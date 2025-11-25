@@ -1,0 +1,7 @@
+---
+# roles/k8s/handlers/main.yml
+
+- name: restart haproxy
+  ansible.builtin.service:
+    name: haproxy
+    state: restarted

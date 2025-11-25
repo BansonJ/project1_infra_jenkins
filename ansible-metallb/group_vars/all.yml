@@ -1,0 +1,38 @@
+---
+# ================================================
+# group_vars/all.yml
+#   - MetalLB / Ingress / WAF 공통 변수
+# ================================================
+
+# === K8s kubeconfig 경로 ===
+k8s_kubeconfig_path: "/home/kubeuser/.kube/config"
+#  ↑↑↑ kubeuser 말고 다른 유저 쓰면 여기 꼭 수정
+
+# === MetalLB IP 풀 (LoadBalancer용) ===
+metallb_ip_range: "172.16.6.138-172.16.6.139"
+#  ↑↑↑ 여기만 네 L2 네트워크에서 "아무도 안 쓰는 IP 대역"으로 수정
+#      DHCP 범위 / 다른 VM / 라우터 IP랑 절대 겹치면 안 됨
+
+# 이 중에서 실제 서비스에 쓸 하나의 IP (WAF가 프록시 타겟으로 사용할 IP)
+metallb_lb_ip: "172.16.6.138"
+#  ↑↑↑ 위 풀 안에서 하나 골라서 지정
+#      my-web-service(Service type=LoadBalancer)의 EXTERNAL-IP로 쓰이게 될 값
+
+# === Ingress / App 도메인 ===
+#ingress_host: "test.com"
+#  ↑↑↑ /etc/hosts에 metallb_lb_ip 와 매핑하거나,
+#      curl 할 때 -H "Host: test.com" 헤더로 사용
+
+# === WAF → Backend upstream (MetalLB IP + Port) ===
+waf_backend_upstream: "{{ metallb_lb_ip }}:80"
+#  ↑↑↑ WAF nginx 의 proxy_pass 대상
+#      즉, WAF -> (MetalLB External IP:80) -> K8s 서비스
+
+# === SELinux 설정 (WAF용) ===
+waf_selinux_state: "permissive"
+#  ↑↑↑ 필요하면 enforcing 으로 다시 올릴 때 사용
+
+# === 방화벽 (WAF 서버에서 열어줄 포트) ===
+waf_open_ports:
+  - 80   # HTTP WAF 엔드포인트
+  # - 443  # 나중에 TLS 붙일 때 미리 열어둬도 됨

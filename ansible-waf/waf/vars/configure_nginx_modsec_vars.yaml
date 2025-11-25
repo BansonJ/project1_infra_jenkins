@@ -1,0 +1,26 @@
+# waf/vars/configure_nginx_modsec_vars.yaml
+
+# Nginx 설정 경로
+nginx_conf_dir: "/usr/local/nginx/conf"
+nginx_conf_d_dir: "/usr/local/nginx/conf/conf.d"
+nginx_default_conf: "/usr/local/nginx/conf/conf.d/default.conf"
+
+# ModSecurity 모듈/라이브러리 경로
+load_module_path: "/usr/local/nginx/modules/ngx_http_modsecurity_module.so"
+modsecurity_rules_file: "/usr/local/nginx/modsecurity.conf"
+modsecurity_ld_conf: "/etc/ld.so.conf.d/modsecurity.conf"
+modsecurity_lib_path: "/usr/local/modsecurity/lib"
+
+# 🔥 여기서 backend_upstream 을 **Ingress LB IP**로 설정
+#    지금 환경 기준 예시: 192.168.154.151 (ingress-nginx-controller EXTERNAL-IP)
+backend_upstream: "172.16.6.139"
+
+# ✅ 템플릿에서 실제로 쓰는 변수들
+ingress_ip: "172.16.6.139"   # kubectl get svc -n ingress-nginx 해서 나온 EXTERNAL-IP
+ingress_host: "test.local"      # Ingress Host (web-ingress.yaml.j2 에서 쓴 값이랑 동일하게)
+
+# ModSecurity / CRS 권한용
+modsecurity_user: "nginx"
+modsecurity_group: "nginx"
+
+modsecurity_crs_base_dir: "/usr/local/modsecurity-crs"

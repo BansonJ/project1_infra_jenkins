@@ -1,0 +1,22 @@
+---
+- name: Load Nginx + ModSecurity configuration variables
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/vars/configure_nginx_modsec_vars.yaml"
+
+- name: Ensure Nginx conf.d directory exists
+  ansible.builtin.file:
+    path: "{{ nginx_conf_d_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Render main nginx.conf
+  ansible.builtin.template:
+    src: "nginx.conf.j2"
+    dest: "{{ nginx_conf_dir }}/nginx.conf"
+    mode: "0644"
+
+- name: Render default reverse-proxy server config
+  ansible.builtin.template:
+    src: "default.conf.j2"
+    dest: "{{ nginx_default_conf }}"
+    mode: "0644"

@@ -1,0 +1,102 @@
+---
+# ========================================================
+# roles/common/tasks/main.yml
+# - 모든 노드에 공통 환경 설정
+#   1) SELinux → permissive
+#   2) firewalld 설치 + 모니터링/MinIO 포트 오픈
+#   3) Docker 설치 및 서비스 활성화
+# ========================================================
+
+# 0. SELinux 설정 (CentOS minimal 기준)
+- name: Set SELinux to {{ selinux_state }} ({{ selinux_policy }})
+  ansible.posix.selinux:
+    state: "{{ selinux_state }}"
+    policy: "{{ selinux_policy }}"
+  when: ansible_os_family == "RedHat"
+
+# 1. firewalld 설치 및 활성화
+- name: Install firewalld
+  package:
+    name: firewalld
+    state: present
+
+- name: Enable and start firewalld
+  systemd:
+    name: firewalld
+    state: started
+    enabled: yes
+
+- name: Gather service facts (for firewalld)
+  service_facts:
+
+# 2. 모니터링/MinIO 포트 개방
+- name: Open monitoring / MinIO TCP ports
+  ansible.posix.firewalld:
+    port: "{{ item }}/tcp"
+    zone: public
+    state: enabled
+    permanent: yes
+    immediate: yes
+  loop: "{{ firewalld_ports }}"
+  when:
+    - ansible_facts.services['firewalld.service'] is defined
+    - ansible_facts.services['firewalld.service'].state == 'running'
+
+- name: Reload firewalld
+  service:
+    name: firewalld
+    state: reloaded
+  when:
+    - ansible_facts.services['firewalld.service'] is defined
+    - ansible_facts.services['firewalld.service'].state == 'running'
+
+# 3. Docker 설치
+- name: Install base packages (yum-utils, device-mapper, etc.)
+  yum:
+    name:
+      - yum-utils
+      - device-mapper-persistent-data
+      - lvm2
+      - python3-pip
+    state: present
+
+- name: Add Docker CE repository file
+  get_url:
+    url: https://download.docker.com/linux/centos/docker-ce.repo
+    dest: /etc/yum.repos.d/docker-ce.repo
+    mode: '0644'
+
+- name: Install Docker Engine and related packages
+  yum:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+    update_cache: yes
+
+# Docker Python SDK (향후 community.docker 모듈용)
+- name: Install Python packages for Docker / Ansible
+  pip:
+    name:
+      - docker
+      - requests
+      - requests-unixsocket
+    state: present
+    executable: pip3
+
+- name: Enable and start Docker service
+  service:
+    name: docker
+    state: started
+    enabled: yes
+
+# 현재 Ansible 접속 계정을 docker 그룹에 추가
+- name: Add {{ ansible_user }} to docker group
+  user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
+  ignore_errors: yes

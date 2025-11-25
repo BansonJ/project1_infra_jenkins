@@ -1,0 +1,18 @@
+SecRuleEngine On
+
+SecRequestBodyAccess On
+SecResponseBodyAccess On
+
+SecResponseBodyMimeType text/plain text/html text/xml
+SecResponseBodyMimeType application/json application/xml
+
+SecAuditEngine RelevantOnly
+SecAuditLog {{ modsecurity_audit_log_file }}
+SecAuditLogFormat Native
+SecAuditLogParts ABIJDEFHZ
+
+SecStatusEngine On
+
+# CRS 포함
+Include "{{ modsecurity_crs_base_dir }}/crs-setup.conf.example"
+Include "{{ modsecurity_crs_rules_dir }}/*.conf"

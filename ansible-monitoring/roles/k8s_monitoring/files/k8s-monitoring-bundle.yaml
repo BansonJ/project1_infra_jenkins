@@ -1,0 +1,365 @@
+# k8s-monitoring-bundle.yaml
+# =========================================================
+# 0. Namespace (Promtail / 모니터링용)
+# =========================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+
+---
+# =========================================================
+# 1. kube-state-metrics (namespace: kube-system)
+#    - Cluster 전체의 상태를 메트릭으로 노출
+#    - NodePort 로 외부 Prometheus에서 스크랩
+# =========================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kube-state-metrics
+  namespace: kube-system
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kube-state-metrics
+rules:
+  - apiGroups: [""]
+    resources:
+      - pods
+      - nodes
+      - namespaces
+      - persistentvolumeclaims
+      - persistentvolumes
+      - services
+      - resourcequotas
+      - replicationcontrollers
+      - limitranges
+      - endpoints
+    verbs: ["list", "watch"]
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+      - daemonsets
+      - replicasets
+      - statefulsets
+    verbs: ["list", "watch"]
+  - apiGroups: ["batch"]
+    resources:
+      - cronjobs
+      - jobs
+    verbs: ["list", "watch"]
+  - apiGroups: ["autoscaling"]
+    resources:
+      - horizontalpodautoscalers
+    verbs: ["list", "watch"]
+  - apiGroups: ["extensions"]
+    resources:
+      - ingresses
+    verbs: ["list", "watch"]
+  - apiGroups: ["policy"]
+    resources:
+      - poddisruptionbudgets
+    verbs: ["list", "watch"]
+  - apiGroups: ["apps"]
+    resources:
+      - daemonsets
+    verbs: ["list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kube-state-metrics
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kube-state-metrics
+subjects:
+  - kind: ServiceAccount
+    name: kube-state-metrics
+    namespace: kube-system
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kube-state-metrics
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: kube-state-metrics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kube-state-metrics
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kube-state-metrics
+    spec:
+      serviceAccountName: kube-state-metrics
+      nodeSelector:
+        kubernetes.io/hostname: "worker1"
+      containers:
+        - name: kube-state-metrics
+          image: registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.12.0
+          ports:
+            - name: http-metrics
+              containerPort: 8080
+            - name: telemetry
+              containerPort: 8081
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            timeoutSeconds: 5
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kube-state-metrics
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: kube-state-metrics
+spec:
+  type: NodePort      # 외부 Prometheus에서 바로 스크랩하기 위함
+  selector:
+    app.kubernetes.io/name: kube-state-metrics
+  ports:
+    - name: http-metrics
+      port: 8080
+      targetPort: 8080
+      nodePort: 31021    # 필요시 환경에 맞게 포트 변경
+
+---
+# =========================================================
+# 2. node-exporter DaemonSet (namespace: kube-system)
+#    - 각 노드의 OS 레벨 메트릭 (CPU, 메모리, 파일시스템 등)
+#    - hostPort 9100 으로 노드 IP:9100 에서 접근
+# =========================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: node-exporter
+  namespace: kube-system
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: node-exporter
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: node-exporter
+  template:
+    metadata:
+      labels:
+        app: node-exporter
+    spec:
+      hostPID: true
+      hostNetwork: true
+      serviceAccountName: node-exporter
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: node-exporter
+          image: quay.io/prometheus/node-exporter:v1.8.1
+          args:
+            - "--path.rootfs=/host"
+          ports:
+            - name: metrics
+              containerPort: 9100
+              hostPort: 9100
+          resources:
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+          volumeMounts:
+            - name: rootfs
+              mountPath: /host
+              readOnly: true
+      volumes:
+        - name: rootfs
+          hostPath:
+            path: /
+
+---
+# (옵션) node-exporter Service (클러스터 내에서 DNS로 접근하고 싶을 때)
+apiVersion: v1
+kind: Service
+metadata:
+  name: node-exporter
+  namespace: kube-system
+  labels:
+    app: node-exporter
+spec:
+  clusterIP: None        # 각 Pod를 그대로 노출하는 Headless Service
+  selector:
+    app: node-exporter
+  ports:
+    - name: metrics
+      port: 9100
+      targetPort: 9100
+
+---
+# =========================================================
+# 3. Promtail DaemonSet (namespace: monitoring)
+#    - /var/log/containers/*.log 를 읽어서 Loki로 전송
+#    - containerd 환경용 (cri 파서 + filename regex)
+# =========================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: promtail
+  namespace: monitoring
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: promtail
+rules:
+  - apiGroups: [""]
+    resources:
+      - pods
+      - nodes
+      - services
+      - endpoints
+      - namespaces
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: promtail
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: promtail
+subjects:
+  - kind: ServiceAccount
+    name: promtail
+    namespace: monitoring
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: promtail-config
+  namespace: monitoring
+data:
+  promtail.yaml: |
+    server:
+      http_listen_port: 9080
+      grpc_listen_port: 0
+
+    positions:
+      filename: /run/promtail/positions.yaml
+
+    clients:
+      - url: http://172.16.6.134:3100/loki/api/v1/push  # ← Loki 주소 (환경에 맞게 수정)
+
+    scrape_configs:
+      - job_name: varlogs
+        static_configs:
+          - targets:
+              - localhost
+            labels:
+              job: varlogs
+              __path__: /var/log/containers/*.log
+
+        pipeline_stages:
+          # 1) containerd / cri 로그 포맷 파싱
+          - cri: {}
+
+          # 2) filename에서 pod / namespace / container 이름 추출
+          - regex:
+              source: filename
+              expression: ".*/(?P<pod>[^_]+)_(?P<namespace>[^_]+)_(?P<container>[^-]+)-.*\\.log"
+
+          # 3) 추출한 값들을 라벨로 승격
+          - labels:
+              pod:
+              namespace:
+              container:
+
+          # 4) (옵션) JSON 앱 로그에서 필드 추출
+          - json:
+              expressions:
+                level: level
+                service: service
+                status: status
+                msg: msg
+
+          # 5) JSON 필드를 라벨로 승격
+          - labels:
+              level:
+              service:
+              status:
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: promtail
+  namespace: monitoring
+  labels:
+    app: promtail
+spec:
+  selector:
+    matchLabels:
+      app: promtail
+  template:
+    metadata:
+      labels:
+        app: promtail
+    spec:
+      serviceAccountName: promtail
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: promtail
+          image: grafana/promtail:2.9.0
+          args:
+            - -config.file=/etc/promtail/promtail.yaml
+            - -log.level=debug
+          volumeMounts:
+            - name: config
+              mountPath: /etc/promtail
+            - name: varlog
+              mountPath: /var/log
+            - name: containerd
+              mountPath: /var/lib/containerd
+            - name: run
+              mountPath: /run/promtail
+      volumes:
+        - name: config
+          configMap:
+            name: promtail-config
+            items:
+              - key: promtail.yaml
+                path: promtail.yaml
+        - name: varlog
+          hostPath:
+            path: /var/log
+        - name: containerd
+          hostPath:
+            path: /var/lib/containerd
+        - name: run
+          hostPath:
+            path: /run/promtail
+

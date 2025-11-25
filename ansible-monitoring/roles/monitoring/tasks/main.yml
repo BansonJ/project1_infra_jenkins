@@ -1,0 +1,179 @@
+---
+# ========================================================
+# roles/monitoring/tasks/main.yml (Docker CLI)
+# ========================================================
+
+# 1. 기본 디렉토리 구조 생성
+- name: Create base monitoring directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - "{{ base_monitoring_dir }}"
+    - "{{ base_monitoring_dir }}/prometheus"
+    - "{{ base_monitoring_dir }}/prometheus/data"
+    - "{{ base_monitoring_dir }}/loki"
+    - "{{ base_monitoring_dir }}/loki/data"
+    - "{{ base_monitoring_dir }}/loki/wal"
+    - "{{ base_monitoring_dir }}/grafana"
+
+# 2. 컨테이너 내부 UID에 맞춰 디렉토리 권한 설정
+#    Prometheus: 65534, Loki: 10001, Grafana: 472
+
+- name: Set Prometheus directory permissions (UID 65534)
+  file:
+    path: "{{ base_monitoring_dir }}/prometheus"
+    owner: "65534"
+    group: "65534"
+    mode: '0750'
+    recurse: yes
+
+- name: Set Loki directory permissions (UID 10001)
+  file:
+    path: "{{ base_monitoring_dir }}/loki"
+    owner: "10001"
+    group: "10001"
+    mode: '0750'
+    recurse: yes
+
+- name: Set Grafana directory permissions (UID 472)
+  file:
+    path: "{{ base_monitoring_dir }}/grafana"
+    owner: "472"
+    group: "472"
+    mode: '0750'
+    recurse: yes
+
+# 3. Loki / Prometheus 설정 파일 배포
+- name: Deploy Loki configuration
+  template:
+    src: loki-config.yaml.j2
+    dest: "{{ base_monitoring_dir }}/loki/loki-config.yaml"
+    owner: "10001"
+    group: "10001"
+    mode: '0640'
+
+- name: Deploy Prometheus configuration
+  template:
+    src: prometheus.yml.j2
+    dest: "{{ base_monitoring_dir }}/prometheus/prometheus.yml"
+    owner: "65534"
+    group: "65534"
+    mode: '0640'
+
+# 4. Docker 네트워크 보장 (없으면 생성)
+- name: Check if monitoring Docker network exists
+  ansible.builtin.command: >
+    docker network inspect {{ docker_network_name }}
+  register: monitoring_net_check
+  failed_when: monitoring_net_check.rc not in [0, 1]
+  changed_when: false
+
+- name: Create monitoring Docker network if needed
+  ansible.builtin.command: >
+    docker network create {{ docker_network_name }}
+  when: monitoring_net_check.rc != 0
+
+# 5. 이미지 존재 여부 확인 후 없으면 pull
+- name: Check Prometheus image exists
+  ansible.builtin.command: >
+    docker image inspect {{ image_prometheus }}
+  register: prometheus_image_check
+  failed_when: prometheus_image_check.rc not in [0, 1]
+  changed_when: false
+
+- name: Pull Prometheus image if not present
+  ansible.builtin.command: >
+    docker pull {{ image_prometheus }}
+  when: prometheus_image_check.rc != 0
+
+- name: Check Loki image exists
+  ansible.builtin.command: >
+    docker image inspect {{ image_loki }}
+  register: loki_image_check
+  failed_when: loki_image_check.rc not in [0, 1]
+  changed_when: false
+
+- name: Pull Loki image if not present
+  ansible.builtin.command: >
+    docker pull {{ image_loki }}
+  when: loki_image_check.rc != 0
+
+- name: Check Grafana image exists
+  ansible.builtin.command: >
+    docker image inspect {{ image_grafana }}
+  register: grafana_image_check
+  failed_when: grafana_image_check.rc not in [0, 1]
+  changed_when: false
+
+- name: Pull Grafana image if not present
+  ansible.builtin.command: >
+    docker pull {{ image_grafana }}
+  when: grafana_image_check.rc != 0
+
+# 6-1. Prometheus 컨테이너 재생성
+- name: Remove existing Prometheus container if present
+  ansible.builtin.command: >
+    docker rm -f prometheus
+  register: prometheus_rm
+  failed_when: prometheus_rm.rc not in [0, 1]
+  changed_when: prometheus_rm.rc == 0
+
+- name: Run Prometheus container
+  ansible.builtin.command: >
+    docker run -d --name prometheus
+    --network {{ docker_network_name }}
+    -p 9090:9090
+    -v {{ base_monitoring_dir }}/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    -v {{ base_monitoring_dir }}/prometheus/data:/prometheus
+    --restart unless-stopped
+    {{ image_prometheus }}
+    --config.file=/etc/prometheus/prometheus.yml
+    --storage.tsdb.path=/prometheus
+    --storage.tsdb.retention.time=15d
+  register: prometheus_run
+  changed_when: prometheus_run.rc == 0
+
+# 6-2. Loki 컨테이너 재생성
+- name: Remove existing Loki container if present
+  ansible.builtin.command: >
+    docker rm -f loki
+  register: loki_rm
+  failed_when: loki_rm.rc not in [0, 1]
+  changed_when: loki_rm.rc == 0
+
+- name: Run Loki container
+  ansible.builtin.command: >
+    docker run -d --name loki
+    --network {{ docker_network_name }}
+    -p 3100:3100
+    -v {{ base_monitoring_dir }}/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
+    -v {{ base_monitoring_dir }}/loki/data:/loki
+    -v {{ base_monitoring_dir }}/loki/wal:/wal
+    --restart unless-stopped
+    {{ image_loki }}
+    -config.file=/etc/loki/local-config.yaml
+  register: loki_run
+  changed_when: loki_run.rc == 0
+
+# 6-3. Grafana 컨테이너 재생성
+- name: Remove existing Grafana container if present
+  ansible.builtin.command: >
+    docker rm -f grafana
+  register: grafana_rm
+  failed_when: grafana_rm.rc not in [0, 1]
+  changed_when: grafana_rm.rc == 0
+
+- name: Run Grafana container
+  ansible.builtin.command: >
+    docker run -d --name grafana
+    --network {{ docker_network_name }}
+    -p 3000:3000
+    -v {{ base_monitoring_dir }}/grafana:/var/lib/grafana
+    --restart unless-stopped
+    {{ image_grafana }}
+  register: grafana_run
+  changed_when: grafana_run.rc == 0

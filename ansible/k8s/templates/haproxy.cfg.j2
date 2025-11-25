@@ -1,0 +1,33 @@
+# roles/k8s/templates/haproxy.cfg.j2
+
+global
+    log         /dev/log local0
+    chroot      /var/lib/haproxy
+    pidfile     /var/run/haproxy.pid
+    maxconn     4000
+    user        haproxy
+    group       haproxy
+    daemon
+
+defaults
+    mode                    tcp
+    log                     global
+    option                  tcplog
+    option                  dontlognull
+    timeout connect         5000
+    timeout client          50000
+    timeout server          50000
+
+frontend kubernetes-apiserver
+    bind *:6443
+    mode tcp
+    option tcplog
+    default_backend k8s-masters
+
+backend k8s-masters
+    mode tcp
+    balance roundrobin
+    option tcp-check
+{% for host in control_plane %}
+    server {{ host }} {{ hostvars[host]['ansible_host'] | default(host) }}:6443 check fall 3 rise 2
+{% endfor %}

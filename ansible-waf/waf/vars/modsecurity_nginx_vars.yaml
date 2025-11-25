@@ -1,0 +1,2 @@
+---
+modsecurity_nginx_src_dir: "/usr/local/src/modsecurity-nginx"

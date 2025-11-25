@@ -1,0 +1,16 @@
+---
+- name: Load ModSecurity-nginx connector variables
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/vars/modsecurity_nginx_vars.yaml"
+
+- name: Create source directory for ModSecurity-nginx
+  ansible.builtin.file:
+    path: "{{ modsecurity_nginx_src_dir | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: Clone ModSecurity-nginx connector
+  ansible.builtin.git:
+    repo: "{{ modsecurity_nginx_repo }}"
+    dest: "{{ modsecurity_nginx_src_dir }}"
+    update: yes

@@ -1,0 +1,42 @@
+---
+# K8s 공통 선행작업 변수
+kube_user: "kubeuser"
+lb_ip: "172.16.6.88"   # 너 환경에 맞게 수정
+
+# 방화벽 TCP 포트 (클러스터 공통)
+k8s_common_ports:
+  - { port: "10250",        desc: "Kubelet API" }
+  - { port: "179",          desc: "Calico BGP" }
+  - { port: "30000-32767",  desc: "NodePort Range" }
+  - { port: "5473",         desc: "Calico Typha" }
+  - { port: "9099",         desc: "Calico API" }
+  - { port: 443, desc: "https" }
+  - { port: 8443, desc: "ingress" }
+  - { port: 9443, desc: "metalLB" }
+  - { port: 7946, desc: "speaker" }
+  - { port: 80, desc: "httpd" }
+
+# 방화벽 UDP 포트 (Calico VXLAN)
+k8s_udp_ports:
+  - 4789
+
+# Control Plane 전용 포트
+k8s_control_plane_ports:
+  - { port: "6443",      desc: "Kube API Server" }
+  - { port: "2379-2380", desc: "etcd Server & Client API" }
+  - { port: "10257",     desc: "kube-controller-manager" }
+  - { port: "10259",     desc: "kube-scheduler" }
+
+# 모니터링/스토리지용 포트
+k8s_monitoring_ports:
+  - { port: "9100",  desc: "Node Exporter" }
+  - { port: "31021", desc: "NodePort(예: Grafana/Prometheus)" }
+  - { port: "3100",  desc: "Loki HTTP" }
+  - { port: "3000",  desc: "Grafana HTTP" }
+  - { port: "9090",  desc: "Prometheus HTTP" }
+  - { port: "9000",  desc: "MinIO API" }
+  - { port: "9001",  desc: "MinIO Console" }
+
+# Haproxy LB 앞단에서 열 포트 (VIP)
+haproxy_ports:
+  - { port: "6443",  desc: "haproxy" }

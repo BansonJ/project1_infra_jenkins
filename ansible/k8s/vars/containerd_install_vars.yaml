@@ -1,0 +1,19 @@
+---
+containerd_repo:
+  name: "docker-ce-stable"
+  baseurl: "https://download.docker.com/linux/centos/8/$basearch/stable"
+  gpgkey: "https://download.docker.com/linux/centos/gpg"
+  enabled: 1
+  gpgcheck: 1
+  repo_file: "/etc/yum.repos.d/docker-ce.repo"
+
+containerd_package: "containerd.io"
+
+containerd_config_dir: "/etc/containerd"
+containerd_config_file: "/etc/containerd/config.toml"
+containerd_service_name: "containerd"
+containerd_service_state: "started"
+containerd_service_enabled: true
+
+containerd_file_mode: '0644'
+containerd_dir_mode: '0755'

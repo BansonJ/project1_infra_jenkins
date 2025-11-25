@@ -1,0 +1,17 @@
+---
+- name: Load CRS variables
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/vars/install_crs_vars.yaml"
+
+- name: Create CRS base directory
+  ansible.builtin.file:
+    path: "{{ crs_install_dir | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: Clone OWASP CRS
+  ansible.builtin.git:
+    repo: "{{ crs_repo }}"
+    version: "{{ crs_branch }}"
+    dest: "{{ crs_install_dir }}"
+    update: yes

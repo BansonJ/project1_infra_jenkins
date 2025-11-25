@@ -1,0 +1,43 @@
+---
+# ===========================
+# K8s / 방화벽 공통 변수
+# ===========================
+
+# SSH 접속 유저 (참고용)
+ansible_user: "kubeuser"
+
+# HAProxy 또는 LB IP (필요 시 사용)
+lb_ip: "172.16.6.138"
+
+# 🔹 Pod CIDR (Calico가 쓰는 Pod 네트워크 대역)
+#   kubectl get pods -A -o wide 해서 Pod IP 대역이 10.244.x.x 이면 10.244.0.0/16 유지
+pod_cidr: "10.244.0.0/16"
+
+# 🔹 Calico VXLAN 인터페이스 이름
+#   각 노드에서: ip link | grep vxlan  로 확인해서 이름이 다르면 여기만 바꾸면 됨
+calico_vxlan_if: "vxlan.calico"
+
+# ===========================
+# 방화벽 포트 정의
+# ===========================
+
+k8s_common_ports:
+  - { port: "10250",        desc: "Kubelet API" }
+  - { port: "179",          desc: "Calico BGP" }
+  - { port: "30000-32767",  desc: "NodePort Range" }
+  - { port: "5473",         desc: "Calico Typha" }
+  - { port: "9099",         desc: "Calico API" }
+  - { port: "443",          desc: "https" }
+  - { port: "8443",         desc: "ingress" }
+  - { port: "9443",         desc: "metalLB" }
+  - { port: "7946",         desc: "speaker" }
+  - { port: "80",           desc: "http" }
+
+k8s_udp_ports:
+  - 4789   # Calico VXLAN
+
+k8s_control_plane_ports:
+  - { port: "6443",      desc: "Kube API Server" }
+  - { port: "2379-2380", desc: "etcd Server & Client API" }
+  - { port: "10257",     desc: "kube-controller-manager" }
+  - { port: "10259",     desc: "kube-scheduler" }

@@ -1,0 +1,4 @@
+---
+nginx_src_dir: "/usr/local/src/nginx-{{ nginx_version }}"
+nginx_prefix: "/usr/local/nginx"
+nginx_download_url: "http://nginx.org/download/nginx-{{ nginx_version }}.tar.gz"

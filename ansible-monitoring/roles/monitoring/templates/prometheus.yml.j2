@@ -1,0 +1,35 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: "onprem-lab"   # 원하는 이름으로, 예: ks-cluster, lab-cluster 등
+
+scrape_configs:
+  # Prometheus 자기 자신
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['prometheus:9090']
+
+  # Loki
+  # - 같은 Docker 네트워크 안에서 컨테이너 이름(loki)으로 접근
+  - job_name: 'loki'
+    static_configs:
+      - targets: ['loki:3100']
+
+  # K8s 노드의 node-exporter (노드 IP:9100)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: [
+          '172.16.6.83:9100',
+          '172.16.6.84:9100',
+          '172.16.6.85:9100',
+          '172.16.6.86:9100',
+          '172.16.6.87:9100'
+        ]
+
+  # kube-state-metrics (NodePort 31021 등으로 노출된 서비스)
+  - job_name: 'kube-state-metrics'
+    static_configs:
+      - targets: [
+          '172.16.6.86:31021'
+        ]

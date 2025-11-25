@@ -1,0 +1,38 @@
+---
+# ===========================================================
+# site.yml : 전체 모니터링 스택 빌드 엔트리 포인트
+#   1) 모든 노드 Docker + SELinux + firewalld (common)
+#   2) MinIO 스토리지 서버 구축 (minio)
+#   3) 모니터링 스택 구축 (Prometheus / Loki / Grafana)
+#   4) K8s 모니터링 번들 적용 (k8s_monitoring)
+# ===========================================================
+
+# 1. 모든 대상 노드에 공통 Docker 환경 + SELinux + firewalld 설정
+- name: Setup Common Docker Environment
+  hosts:
+    - monitoring
+    - minio
+  become: yes
+  roles:
+    - common
+
+# 2. MinIO 서버 구축
+- name: Setup MinIO Server
+  hosts: minio
+  become: yes
+  roles:
+    - minio
+
+# 3. 모니터링 스택 구축 (Prometheus / Loki / Grafana)
+- name: Setup Monitoring Stack
+  hosts: monitoring
+  become: yes
+  roles:
+    - monitoring
+
+# 4. K8s 모니터링 번들 적용 (kube-state-metrics / node-exporter / promtail)
+- name: Setup K8s monitoring bundle (kube-state-metrics / node-exporter / promtail)
+  hosts: k8s_control
+  become: yes
+  roles:
+    - k8s_monitoring

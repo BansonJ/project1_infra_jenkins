@@ -1,0 +1,56 @@
+# waf/tasks/nginx_restart.yaml
+---
+# nginx_restart용 변수 로드
+- name: Load Nginx restart variables
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/vars/nginx_restart_vars.yaml"
+
+# nginx_prefix 등 빌드 시 썼던 변수 로드
+- name: Load Nginx build variables (for nginx_prefix)
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/vars/nginx_build_vars.yaml"
+
+- name: Backup existing system Nginx binary (if exists)
+  ansible.builtin.command: mv {{ nginx_old_path }} {{ nginx_backup_path }}
+  args:
+    removes: "{{ nginx_old_path }}"
+  ignore_errors: true
+
+- name: Symlink new Nginx binary to /usr/sbin/nginx
+  ansible.builtin.file:
+    src: "{{ nginx_new_path }}"
+    dest: "{{ nginx_old_path }}"
+    state: link
+
+- name: Install systemd unit for Nginx
+  ansible.builtin.template:
+    src: "nginx.service.j2"
+    dest: "{{ nginx_systemd_unit }}"
+    mode: "0644"
+
+- name: Reload systemd daemon
+  ansible.builtin.command: systemctl daemon-reload
+
+- name: Enable and start Nginx service
+  ansible.builtin.service:
+    name: nginx
+    state: restarted
+    enabled: true
+
+- name: Open HTTP port on firewalld
+  ansible.builtin.firewalld:
+    port: 80/tcp
+    permanent: yes
+    state: enabled
+    immediate: yes
+
+- name: Open HTTPS port on firewalld
+  ansible.builtin.firewalld:
+    port: 443/tcp
+    permanent: yes
+    state: enabled
+    immediate: yes
+
+- name: Reload firewalld
+  ansible.builtin.command: firewall-cmd --reload
+  changed_when: false

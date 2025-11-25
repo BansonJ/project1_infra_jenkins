@@ -1,0 +1,21 @@
+# waf/vars/install_build_packages_vars.yaml
+---
+build_packages:
+  - gcc
+  - gcc-c++
+  - make
+  - automake
+  - autoconf
+  - libtool
+  - git
+  - wget
+  - pcre2-devel
+  - libxml2-devel
+  - flex
+  - bison
+  - curl-devel
+  - zlib-devel
+  - openssl-devel
+  - ssdeep-devel
+  - cmake
+  - pkgconf-pkg-config

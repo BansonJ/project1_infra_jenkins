@@ -1,0 +1,12 @@
+---
+# Control Plane LoadBalancer IP (HAProxy IP)
+lb_ip: "172.16.6.88"
+
+# Pod network CIDR (Calico)
+pod_network_cidr: "10.244.0.0/16"
+
+# Non-root kubeconfig user
+kube_user: "kubeuser"
+
+# CNI 다운로드 URL (Calico)
+cni_manifest_url: "https://docs.projectcalico.org/manifests/calico.yaml"

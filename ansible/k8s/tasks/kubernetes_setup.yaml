@@ -1,0 +1,52 @@
+---
+- name: "Include Kubernetes setup variables"
+  ansible.builtin.include_vars: "kubernetes_setup_vars.yaml"
+
+# 1. K8s repo 추가
+- name: "Add Kubernetes repository"
+  ansible.builtin.copy:
+    dest: /etc/yum.repos.d/kubernetes.repo
+    content: |
+      [{{ k8s_repo.name }}]
+      name={{ k8s_repo.name }}
+      baseurl={{ k8s_repo.baseurl }}
+      enabled=1
+      gpgcheck=1
+      gpgkey={{ k8s_repo.gpgkey }}
+      exclude={{ k8s_repo.exclude }}
+    owner: root
+    group: root
+    mode: '0644'
+
+# 2. kubelet, kubeadm, kubectl 설치
+- name: "Install Kubernetes packages"
+  ansible.builtin.yum:
+    name: "{{ k8s_packages }}"
+    state: present
+    disable_excludes: kubernetes
+
+# 3. kubelet 활성화
+- name: "Enable and start kubelet"
+  ansible.builtin.systemd:
+    name: kubelet
+    enabled: yes
+    state: started
+
+# 4. kubectl alias / completion (.bashrc) – kube_user 기준
+- name: "Configure kubectl in .bashrc for kube_user"
+  ansible.builtin.lineinfile:
+    path: "/home/{{ kube_user }}/.bashrc"
+    line: "{{ item }}"
+    state: present
+    create: yes              # 파일 없으면 만들기
+    owner: "{{ kube_user }}"
+    group: "{{ kube_user }}"
+    mode: '0644'
+  loop: "{{ kubectl_bashrc_lines }}"
+  when: kube_user is defined
+
+#- name: "Apply .bashrc (kubectl alias 등)"
+#  ansible.builtin.shell: ". ~/.bashrc"
+#  args:
+#    executable: /bin/bash"
+#  become: false

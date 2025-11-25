@@ -1,0 +1,6 @@
+---
+- name: Kubernetes 사전 설정 준비
+  hosts: all
+  gather_facts: yes
+  roles:
+    - ./metallb      # 아래에서 정의할 Role 이름

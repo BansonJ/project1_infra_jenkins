@@ -1,0 +1,91 @@
+---
+- name: Load variable file
+  include_vars:
+    file: pods_vars.yaml
+
+- name: Wait for Kubernetes API to be reachable
+  command: kubectl version --short
+  register: k8s_api_status
+  retries: 50
+  delay: 10
+  until: k8s_api_status.rc == 0
+
+- name: Wait for CoreDNS to be Running
+  command: kubectl get pods -n kube-system -l k8s-app=kube-dns --no-headers
+  register: coredns_status
+  retries: 50
+  delay: 10
+  until: "'Running' in coredns_status.stdout"
+
+- name: Download MetalLB manifests
+  get_url:
+    url: "https://raw.githubusercontent.com/metallb/metallb/{{ metallb_version }}/config/manifests/metallb-native.yaml"
+    dest: "/tmp/metallb.yaml"
+
+- name: Apply MetalLB manifest
+  command: kubectl apply -f /tmp/metallb.yaml
+
+- name: Wait for MetalLB Controller Ready
+  command: kubectl get pods -n metallb-system -l component=controller --no-headers
+  register: metallb_ctrl
+  retries: 50
+  delay: 10
+  until: "'Running' in metallb_ctrl.stdout"
+
+- name: Wait for MetalLB Speaker Ready
+  command: kubectl get pods -n metallb-system -l component=speaker --no-headers
+  register: metallb_speaker
+  retries: 50
+  delay: 10
+  until: "'Running' in metallb_speaker.stdout"
+
+- name: Apply MetalLB Config template
+  template:
+    src: metallb-config.yaml.j2
+    dest: /tmp/metallb-config.yaml
+
+- name: Apply MetalLB Config
+  command: kubectl apply -f /tmp/metallb-config.yaml
+
+- name: Deploy NGINX web application
+  template:
+    src: app-deployment.yaml.j2
+    dest: /tmp/app-deployment.yaml
+
+- name: Apply app deployment
+  command: kubectl apply -f /tmp/app-deployment.yaml
+
+- name: Wait for app pods to be Running
+  command: kubectl get pods -l app={{ app_name }} --no-headers
+  register: app_pods
+  retries: 50
+  delay: 10
+  until: "'Running' in app_pods.stdout"
+
+- name: Deploy web service
+  template:
+    src: web-service.yaml.j2
+    dest: /tmp/web-service.yaml
+
+- name: Apply web service
+  command: kubectl apply -f /tmp/web-service.yaml
+
+- name: Install NGINX Ingress Controller
+  command: >
+    kubectl apply -f
+    https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.14.0/deploy/static/provider/cloud/deploy.yaml
+
+- name: Wait for Ingress Controller to be Ready
+  command: kubectl get pods -n ingress-nginx --no-headers
+  register: ingress_pods
+  retries: 50
+  delay: 10
+  until: "'Running' in ingress_pods.stdout"
+
+- name: Deploy Ingress
+  template:
+    src: web-ingress.yaml.j2
+    dest: /tmp/web-ingress.yaml
+
+- name: Apply Ingress
+  command: kubectl apply -f /tmp/web-ingress.yaml

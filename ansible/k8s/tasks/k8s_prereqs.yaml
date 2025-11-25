@@ -1,0 +1,145 @@
+---
+- name: "Include K8s pre-requisites variables"
+  ansible.builtin.include_vars:
+    file: "k8s_prereqs_vars.yaml"
+
+# 1. Swap Off
+- name: "1.1 Swap off immediately"
+  ansible.builtin.command: swapoff -a
+  when: ansible_swaptotal_mb | int > 0
+
+- name: "1.2 Remove swap entries from /etc/fstab"
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    regexp: '^\s*[^#].*\s+swap\s+.*$'
+    state: absent
+
+# 2. SELinux PERMISSIVE
+- name: "2. Set SELinux to permissive"
+  ansible.posix.selinux:
+    state: permissive
+    policy: targeted
+
+# 3. 커널 모듈
+- name: "3.1 Configure kernel modules for K8s"
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/k8s.conf
+    content: |
+      overlay
+      br_netfilter
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: "3.2 Load kernel modules"
+  ansible.builtin.command: "modprobe {{ item }}"
+  loop:
+    - overlay
+    - br_netfilter
+
+# 4. sysctl
+- name: "4. Configure sysctl for Kubernetes"
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+    sysctl_file: /etc/sysctl.d/99-kubernetes-sysctl.conf
+    reload: yes
+  loop:
+    - { name: 'net.bridge.bridge-nf-call-iptables', value: '1' }
+    - { name: 'net.bridge.bridge-nf-call-ip6tables', value: '1' }
+    - { name: 'net.ipv4.ip_forward', value: '1' }
+
+# 5. firewalld + 포트
+- name: "5.1 Install firewalld"
+  ansible.builtin.package:
+    name: firewalld
+    state: present
+
+- name: "5.2 Enable and start firewalld"
+  ansible.builtin.systemd:
+    name: firewalld
+    state: started
+    enabled: yes
+
+- name: "5.3 Gather service facts"
+  ansible.builtin.service_facts:
+
+# 5-A. K8s 공통 TCP 포트 (K8s 노드만)
+- name: "5.4 Open common K8s TCP ports"
+  ansible.posix.firewalld:
+    port: "{{ item.port }}/tcp"
+    zone: public
+    state: enabled
+    permanent: yes
+    immediate: yes
+  loop: "{{ k8s_common_ports }}"
+  when:
+    - ansible_facts.services['firewalld.service'] is defined
+    - ansible_facts.services['firewalld.service'].state == 'running'
+    - inventory_hostname in groups['all_k8s']
+
+# 5-B. Calico UDP
+- name: "5.5 Open Calico VXLAN UDP ports"
+  ansible.posix.firewalld:
+    port: "{{ item }}/udp"
+    zone: public
+    state: enabled
+    permanent: yes
+    immediate: yes
+  loop: "{{ k8s_udp_ports }}"
+  when:
+    - ansible_facts.services['firewalld.service'] is defined
+    - ansible_facts.services['firewalld.service'].state == 'running'
+    - inventory_hostname in groups['all_k8s']
+
+# 5-C. Control Plane 전용 TCP 포트 (컨트롤 노드만)
+- name: "5.6 Open control-plane TCP ports"
+  ansible.posix.firewalld:
+    port: "{{ item.port }}/tcp"
+    zone: public
+    state: enabled
+    permanent: yes
+    immediate: yes
+  loop: "{{ k8s_control_plane_ports }}"
+  when:
+    - ansible_facts.services['firewalld.service'] is defined
+    - ansible_facts.services['firewalld.service'].state == 'running'
+    - inventory_hostname in groups['control_plane']
+
+# 5-D. 모니터링 포트 (K8s 노드 공통)
+- name: "5.7 Open monitoring TCP ports"
+  ansible.posix.firewalld:
+    port: "{{ item.port }}/tcp"
+    zone: public
+    state: enabled
+    permanent: yes
+    immediate: yes
+  loop: "{{ k8s_monitoring_ports }}"
+  when:
+    - ansible_facts.services['firewalld.service'] is defined
+    - ansible_facts.services['firewalld.service'].state == 'running'
+    - inventory_hostname in groups['all_k8s']
+
+# 5-E. Haproxy LB 앞단 포트
+- name: "5.8 Open HAProxy load balancer ports"
+  ansible.posix.firewalld:
+    port: "{{ item.port }}/tcp"
+    zone: public
+    state: enabled
+    permanent: yes
+    immediate: yes
+  loop: "{{ haproxy_ports }}"
+  when:
+    - ansible_facts.services['firewalld.service'] is defined
+    - ansible_facts.services['firewalld.service'].state == 'running'
+    - inventory_hostname in groups['haproxy']
+
+- name: "5.9 Reload firewalld"
+  ansible.builtin.service:
+    name: firewalld
+    state: restarted
+    enabled: yes
+  when:
+    - ansible_facts.services['firewalld.service'] is defined
+    - ansible_facts.services['firewalld.service'].state == 'running'

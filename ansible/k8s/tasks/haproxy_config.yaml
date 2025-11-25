@@ -1,0 +1,29 @@
+---
+- name: "Include HAProxy variables"
+  ansible.builtin.include_vars:
+    file: "haproxy_config_vars.yaml"
+
+- name: "Set control_plane list variable for HAProxy template"
+  ansible.builtin.set_fact:
+    control_plane: "{{ control_plane_hosts }}"
+  run_once: true
+
+- name: "Install HAProxy package"
+  ansible.builtin.dnf:
+    name: "{{ haproxy_package }}"
+    state: present
+
+- name: "Deploy HAProxy configuration"
+  ansible.builtin.template:
+    src: "{{ haproxy_config_src }}"
+    dest: "{{ haproxy_config_dest }}"
+    owner: "{{ haproxy_config_owner }}"
+    group: "{{ haproxy_config_group }}"
+    mode: "{{ haproxy_config_mode }}"
+  notify: restart haproxy
+
+- name: "Enable and start HAProxy service"
+  ansible.builtin.service:
+    name: "{{ haproxy_service_name }}"
+    state: "{{ haproxy_service_state }}"
+    enabled: "{{ haproxy_service_enabled }}"

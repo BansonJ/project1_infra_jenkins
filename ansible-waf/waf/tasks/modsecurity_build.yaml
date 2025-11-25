@@ -1,0 +1,56 @@
+# waf/tasks/modsecurity_build.yaml
+---
+- name: Load ModSecurity build variables
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/vars/modsecurity_build_vars.yaml"
+
+- name: Create source directory for ModSecurity
+  ansible.builtin.file:
+    path: "{{ modsecurity_src_dir | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: Clone ModSecurity v3 repository
+  ansible.builtin.git:
+    repo: "{{ modsecurity_repo }}"
+    version: "{{ modsecurity_branch }}"
+    dest: "{{ modsecurity_src_dir }}"
+    update: yes
+
+- name: Initialize ModSecurity submodules
+  ansible.builtin.command: git submodule update --init --recursive
+  args:
+    chdir: "{{ modsecurity_src_dir }}"
+  register: modsec_submodule
+  changed_when: modsec_submodule.rc == 0
+
+# ---- 여기부터 빌드 순서 (build.sh → configure → make → make install) ----
+
+- name: Run build.sh for ModSecurity
+  ansible.builtin.command: ./build.sh
+  args:
+    chdir: "{{ modsecurity_src_dir }}"
+
+- name: Run ./configure for ModSecurity
+  ansible.builtin.command: ./configure --prefix={{ modsecurity_install_prefix }}
+  args:
+    chdir: "{{ modsecurity_src_dir }}"
+
+- name: Build ModSecurity (make)
+  ansible.builtin.command: make -j2
+  args:
+    chdir: "{{ modsecurity_src_dir }}"
+
+- name: Install ModSecurity (make install)
+  ansible.builtin.command: make install
+  args:
+    chdir: "{{ modsecurity_src_dir }}"
+
+- name: Add ModSecurity lib path to ld.so.conf.d
+  ansible.builtin.lineinfile:
+    path: "/etc/ld.so.conf.d/modsecurity.conf"
+    line: "{{ modsecurity_install_prefix }}/lib"
+    create: yes
+
+- name: Run ldconfig
+  ansible.builtin.command: ldconfig

@@ -1,0 +1,30 @@
+[all]
+haproxy  ansible_host=172.16.6.88 ansible_user=haproxy ansible_become=yes
+control1 ansible_host=172.16.6.83 ansible_user=kubeuser ansible_become=yes
+control2 ansible_host=172.16.6.84 ansible_user=kubeuser ansible_become=yes
+control3 ansible_host=172.16.6.85 ansible_user=kubeuser ansible_become=yes
+worker1  ansible_host=172.16.6.86 ansible_user=kubeuser ansible_become=yes
+worker2  ansible_host=172.16.6.87 ansible_user=kubeuser ansible_become=yes
+
+# K8s 노드 전체 (클러스터 관련 롤 대상)
+[all_k8s]
+control1
+control2
+control3
+worker1
+worker2
+
+# 로드밸런서(HAProxy) 전용 그룹
+[haproxy]
+haproxy
+
+# Control Plane 그룹
+[control_plane]
+control1
+control2
+control3
+
+# Worker Node 그룹
+[worker_node]
+worker1
+worker2

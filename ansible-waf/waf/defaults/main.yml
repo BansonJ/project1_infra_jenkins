@@ -1,0 +1,11 @@
+---
+# 기본 버전 값 (필요시 여기만 수정)
+nginx_version: "1.26.2"
+
+modsecurity_repo: "https://github.com/SpiderLabs/ModSecurity"
+modsecurity_branch: "v3/master"
+
+modsecurity_nginx_repo: "https://github.com/SpiderLabs/ModSecurity-nginx"
+
+crs_repo: "https://github.com/coreruleset/coreruleset"
+crs_branch: "main"

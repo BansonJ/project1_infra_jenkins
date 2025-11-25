@@ -1,0 +1,13 @@
+# --- 메인 애플리케이션 및 서비스 정의 ---
+app_name: 'unique-nginx-app-v3'        # Deployment, Pod 레이블에 사용되는 고유 이름
+service_name: 'lb-nginx-service-v3'    # Service 이름
+ingress_name: 'host-test-ingress-v3'   # Ingress 리소스 이름
+
+# --- MetalLB 설정 ---
+metallb_version: 'v0.15.2'             # MetalLB Manifest 버전 (사용자 제공)
+ip_range: '172.16.6.136-172.16.6.139'  # MetalLB가 할당할 IP 범위 (사용자 제공)
+
+# --- Ingress NGINX 설정 ---
+ingress_controller_version: 'controller-v1.14.0' # Ingress NGINX 버전
+ingress_class: 'nginx'                         # IngressClass 이름
+ingress_host: 'test.com'                       # Ingress를 통해 접속할 도메인

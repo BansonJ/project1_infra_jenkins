@@ -1,0 +1,57 @@
+# ==================================
+# 1. 민감 정보 및 키 파일
+# ==================================
+*.key
+*.pem
+*.crt
+*.csr
+.vault-pass.txt
+credentials.yaml
+private_key*
+.gitconfig
+
+# ==================================
+# 2. Jenkins / CI Tool
+# ==================================
+initialAdminPassword
+*.log
+/var/lib/jenkins/
+/opt/jenkins_home/
+
+# ==================================
+# 3. Python / Ansible
+# ==================================
+__pycache__/
+*.pyc
+.ansible/
+.venv/
+venv/
+target/
+
+# ==================================
+# 4. OS 및 에디터 임시 파일
+# ==================================
+*~
+.#*
+*.swp
+.DS_Store
+.cache/
+.local/
+.npm/
+ansible-waf.bak/
+
+# ==================================
+# 5. 사용자 환경 관련
+# ==================================
+.bash_history
+.ssh/
+.git/
+# ==================================
+# 6. 사용자 환경 설정 및 히스토리
+# ==================================
+.bashrc
+.bash_profile
+.bash_logout
+.lesshst
+.bash_history
+.ssh/

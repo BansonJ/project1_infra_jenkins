@@ -1,0 +1,8 @@
+---
+- name: Kubernetes + HAProxy initial cluster setup
+  hosts: all
+  gather_facts: yes
+  become: true   # 기본은 다 root로 실행
+
+  roles:
+    - k8s

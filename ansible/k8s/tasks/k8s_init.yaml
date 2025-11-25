@@ -1,0 +1,100 @@
+---
+- name: "Include Kubernetes init variables"
+  ansible.builtin.include_vars: "k8s_init_vars.yaml"
+
+# 1. 첫 번째 ControlPlane에서 kubeadm init
+- name: "Initialize main control plane"
+  become: true
+  ansible.builtin.shell: |
+    kubeadm init \
+      --control-plane-endpoint "{{ lb_ip }}:6443" \
+      --upload-certs \
+      --pod-network-cidr {{ pod_network_cidr }} \
+      > /root/kubeadm-init.out
+  register: kubeadm_init
+  run_once: true
+  when: inventory_hostname == groups['control_plane'][0]
+
+# 2. cert_key 추출
+- name: "Extract certificate key"
+  ansible.builtin.shell: |
+    kubeadm init phase upload-certs --upload-certs | tail -1
+  register: cert_key_cmd
+  run_once: true
+  when: inventory_hostname == groups['control_plane'][0]
+
+- name: "Set certificate key fact"
+  ansible.builtin.set_fact:
+    cert_key: "{{ cert_key_cmd.stdout }}"
+  run_once: true
+
+# 3. worker 조인용 기본 join 명령어 생성 (첫 control_plane에서 실행)
+- name: "Get kubeadm join command for workers"
+  ansible.builtin.shell: kubeadm token create --print-join-command
+  register: kubeadm_join_cmd
+  delegate_to: "{{ groups['control_plane'][0] }}"
+  run_once: true
+
+# 4. 나머지 Control Plane 조인
+- name: "Join other control planes"
+  ansible.builtin.shell: >
+    {{ kubeadm_join_cmd.stdout }} --control-plane --certificate-key {{ cert_key }}
+  when: inventory_hostname in groups['control_plane'][1:]
+
+# 5. non-root kubeconfig 세팅 (첫 control_plane 기준, kube_user = kubeuser)
+- name: "Create .kube directory for non-root user"
+  ansible.builtin.file:
+    path: "/home/{{ kube_user }}/.kube"
+    state: directory
+    owner: "{{ kube_user }}"
+    group: "{{ kube_user }}"
+    mode: '0755'
+  run_once: true
+  when: inventory_hostname == groups['control_plane'][0] and kube_user is defined
+
+- name: "Copy kubeconfig to non-root user"
+  ansible.builtin.copy:
+    remote_src: true
+    src: /etc/kubernetes/admin.conf
+    dest: "/home/{{ kube_user }}/.kube/config"
+    owner: "{{ kube_user }}"
+    group: "{{ kube_user }}"
+    mode: '0644'
+  run_once: true
+  when: inventory_hostname == groups['control_plane'][0] and kube_user is defined
+
+- name: "Create CNI tools directory for non-root user"
+  ansible.builtin.file:
+    path: "/home/{{ kube_user }}/tools/cni"
+    state: directory
+    owner: "{{ kube_user }}"
+    group: "{{ kube_user }}"
+    mode: '0755'
+  run_once: true
+  when: inventory_hostname == groups['control_plane'][0] and kube_user is defined
+
+# 6. kube-apiserver 준비 상태 확인
+- name: "Wait for kube-apiserver to be ready"
+  ansible.builtin.shell: kubectl get nodes
+  environment:
+    KUBECONFIG: "/home/{{ kube_user }}/.kube/config"
+  register: kube_api_check
+  retries: 10
+  delay: 15
+  until: kube_api_check.rc == 0
+  run_once: true
+  when: inventory_hostname == groups['control_plane'][0] and kube_user is defined
+
+# 7. CNI 설치 (Calico)
+- name: "Install Calico CNI"
+  ansible.builtin.shell: |
+    kubectl apply -f {{ cni_manifest_url }}
+  environment:
+    KUBECONFIG: "/home/{{ kube_user }}/.kube/config"
+  run_once: true
+  when: inventory_hostname == groups['control_plane'][0] and kube_user is defined
+
+# 8. 워커 노드 조인
+- name: "Join worker nodes"
+  ansible.builtin.shell: "{{ kubeadm_join_cmd.stdout }}"
+  when: inventory_hostname in groups['worker_node']

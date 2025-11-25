@@ -1,0 +1,6 @@
+---
+# tasks file for metallb
+# 6. Initial basic pods with failover (delegate_to 없이)
+- name: "Deploy initial basic pods on first alive control plane"
+  include_tasks: pods.yaml
+  when: inventory_hostname == groups.get('control_plane', [])[0]

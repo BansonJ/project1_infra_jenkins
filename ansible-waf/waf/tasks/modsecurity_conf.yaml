@@ -1,0 +1,37 @@
+# waf/tasks/modsecurity_conf.yaml
+---
+- name: Load ModSecurity configuration variables
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/vars/modsecurity_conf_vars.yaml"
+
+# 1) nginx 유저/그룹 생성 (없으면 만들고, 있으면 그대로 둠)
+- name: Ensure nginx group exists
+  ansible.builtin.group:
+    name: "{{ modsecurity_group }}"
+    system: true
+
+- name: Ensure nginx user exists
+  ansible.builtin.user:
+    name: "{{ modsecurity_user }}"
+    group: "{{ modsecurity_group }}"
+    system: true
+    create_home: false
+    shell: /sbin/nologin
+
+# 2) 로그 디렉토리 생성
+- name: Create ModSecurity log directory
+  ansible.builtin.file:
+    path: "{{ modsecurity_audit_log_dir }}"
+    state: directory
+    owner: "{{ modsecurity_user }}"
+    group: "{{ modsecurity_group }}"
+    mode: "0750"
+
+# 3) 메인 설정 파일 생성
+- name: Generate ModSecurity main configuration
+  ansible.builtin.template:
+    src: "modsecurity.conf.j2"
+    dest: "{{ modsecurity_conf_path }}"
+    owner: "{{ modsecurity_user }}"
+    group: "{{ modsecurity_group }}"
+    mode: "0640"

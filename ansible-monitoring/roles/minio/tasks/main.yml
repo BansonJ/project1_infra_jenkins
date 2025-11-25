@@ -1,0 +1,86 @@
+---
+# ========================================================
+# roles/minio/tasks/main.yml (Docker CLI + mc로 버킷 생성)
+# ========================================================
+
+# MinIO 데이터 디렉토리 생성
+- name: Create MinIO base directory
+  file:
+    path: "{{ base_minio_dir }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0750'
+
+- name: Create MinIO data directory
+  file:
+    path: "{{ base_minio_dir }}/data"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0750'
+    recurse: yes
+
+# MinIO 이미지 존재 여부 확인
+- name: Check if MinIO image exists
+  ansible.builtin.command: >
+    docker image inspect {{ image_minio }}
+  register: minio_image_check
+  failed_when: minio_image_check.rc not in [0, 1]
+  changed_when: false
+
+# 없으면 pull
+- name: Pull MinIO image if not present
+  ansible.builtin.command: >
+    docker pull {{ image_minio }}
+  when: minio_image_check.rc != 0
+
+# 기존 컨테이너 있으면 제거 (idempotent)
+- name: Remove existing MinIO container if present
+  ansible.builtin.command: >
+    docker rm -f minio
+  register: minio_rm
+  failed_when: minio_rm.rc not in [0, 1]   # 0: 지웠음, 1: 원래 없음
+  changed_when: minio_rm.rc == 0
+
+# MinIO 컨테이너 실행
+- name: Run MinIO container
+  ansible.builtin.command: >
+    docker run -d --name minio
+    -p {{ minio_api_port }}:9000
+    -p {{ minio_console_port }}:9001
+    -v {{ base_minio_dir }}/data:/data
+    -e MINIO_ROOT_USER={{ minio_root_user }}
+    -e MINIO_ROOT_PASSWORD={{ minio_root_password }}
+    --restart unless-stopped
+    {{ image_minio }}
+    server /data --console-address ":{{ minio_console_port }}"
+  register: minio_run
+  changed_when: minio_run.rc == 0
+
+# ---- 여기부터: 웹 콘솔 안 쓰고 버킷 자동 생성 ----
+
+- name: Wait for MinIO API to be reachable
+  ansible.builtin.wait_for:
+    host: "127.0.0.1"
+    port: "{{ minio_api_port | int }}"
+    delay: 5
+    timeout: 60
+
+# mc 이미지 pull (필요시)
+- name: Pull MinIO client (mc) image
+  ansible.builtin.command: >
+    docker pull minio/mc
+  register: mc_pull
+  failed_when: mc_pull.rc not in [0, 1]
+  changed_when: mc_pull.rc == 0
+
+# mc 컨테이너로 버킷 생성 (이미 있으면 ignore-existing)
+- name: Ensure MinIO bucket {{ minio_bucket_name }} exists (mc)
+  ansible.builtin.shell: |
+    docker run --rm --name minio-mc \
+      --network host \
+      -e MC_HOST_minio=http://{{ minio_root_user }}:{{ minio_root_password }}@127.0.0.1:{{ minio_api_port }} \
+      minio/mc mb --ignore-existing minio/{{ minio_bucket_name }}
+  register: minio_bucket_cmd
+  changed_when: "'created' in minio_bucket_cmd.stdout"

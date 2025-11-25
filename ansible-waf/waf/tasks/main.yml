@@ -1,0 +1,32 @@
+---
+# 1. 빌드/의존 패키지 설치
+- name: "1. Install build packages"
+  ansible.builtin.include_tasks: install_build_packages.yaml
+
+# 2. ModSecurity v3 빌드
+- name: "2. Build ModSecurity v3"
+  ansible.builtin.include_tasks: modsecurity_build.yaml
+
+# 3. ModSecurity-nginx connector 다운로드
+- name: "3. Prepare ModSecurity-nginx connector"
+  ansible.builtin.include_tasks: modsecurity_nginx.yaml
+
+# 4. Nginx 빌드 (ModSecurity 모듈 포함)
+- name: "4. Build Nginx with ModSecurity module"
+  ansible.builtin.include_tasks: nginx_build.yaml
+
+# 5. OWASP CRS 설치
+- name: "5. Install OWASP ModSecurity CRS"
+  ansible.builtin.include_tasks: install_crs.yaml
+
+# 6. ModSecurity 기본 설정 파일 생성
+- name: "6. Generate ModSecurity configuration"
+  ansible.builtin.include_tasks: modsecurity_conf.yaml
+
+# 7. Nginx 리버스프록시 + ModSecurity 설정
+- name: "7. Configure Nginx with ModSecurity reverse proxy"
+  ansible.builtin.include_tasks: configure_nginx_modsec.yaml
+
+# 8. Nginx systemd 서비스 등록 및 시작
+- name: "8. Register & restart Nginx service"
+  ansible.builtin.include_tasks: nginx_restart.yaml

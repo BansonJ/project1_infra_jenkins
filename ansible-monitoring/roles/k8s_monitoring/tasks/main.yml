@@ -1,0 +1,45 @@
+---
+# =========================================================
+# roles/k8s_monitoring/tasks/main.yml
+# =========================================================
+
+# 0. kubeconfig 존재 여부 확인
+- name: Check kubeconfig exists
+  become: false          # kubeuser로 실행
+  stat:
+    path: "{{ k8s_kubeconfig_path }}"
+  register: kubeconfig_stat
+
+- name: Fail when kubeconfig is missing
+  become: false
+  fail:
+    msg: "kubeconfig file {{ k8s_kubeconfig_path }} not found on {{ inventory_hostname }}. 먼저 클러스터에서 kubeconfig를 생성해 주세요."
+  when: not kubeconfig_stat.stat.exists
+
+# 1. kubectl이 클러스터에 붙을 수 있는지 확인
+- name: Check kubectl can talk to cluster (kubectl get nodes)
+  become: false
+  command: >
+    kubectl --kubeconfig={{ k8s_kubeconfig_path }} get nodes
+  register: kubectl_check
+  changed_when: false
+  failed_when: kubectl_check.rc != 0
+
+# 2. monitoring 번들 YAML 복사
+- name: Copy k8s monitoring bundle manifest
+  become: false
+  copy:
+    src: "{{ k8s_monitoring_bundle_src }}"
+    dest: "{{ k8s_monitoring_bundle_dest }}"
+    mode: '0644'
+
+# 3. kubectl apply (명시적으로 kubeconfig 사용)
+- name: Apply k8s monitoring bundle manifest
+  become: false
+  command: >
+    kubectl --kubeconfig={{ k8s_kubeconfig_path }}
+    apply -f {{ k8s_monitoring_bundle_dest }}
+  register: k8s_monitoring_apply
+  changed_when: >
+    'created' in k8s_monitoring_apply.stdout
+    or 'configured' in k8s_monitoring_apply.stdout

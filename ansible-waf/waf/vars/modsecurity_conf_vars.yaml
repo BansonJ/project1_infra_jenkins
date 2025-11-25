@@ -1,0 +1,12 @@
+---
+modsecurity_conf_path: "/usr/local/nginx/modsecurity.conf"
+modsecurity_audit_log_dir: "/var/log/modsecurity"
+modsecurity_audit_log_file: "/var/log/modsecurity/modsec_audit.log"
+
+modsecurity_user: "nginx"
+modsecurity_group: "nginx"
+modsecurity_audit_log_format: "Native"
+
+
+modsecurity_crs_base_dir: "/usr/local/modsecurity-crs"
+modsecurity_crs_rules_dir: "/usr/local/modsecurity-crs/rules"

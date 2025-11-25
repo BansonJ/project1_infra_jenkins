@@ -1,0 +1,8 @@
+---
+- name: Deploy Nginx + ModSecurity WAF
+  hosts: waf
+  gather_facts: yes
+  become: true
+
+  roles:
+    - waf

@@ -1,0 +1,5 @@
+---
+nginx_old_path: "/usr/sbin/nginx"
+nginx_backup_path: "/usr/sbin/nginx.orig"
+nginx_new_path: "/usr/local/nginx/sbin/nginx"
+nginx_systemd_unit: "/etc/systemd/system/nginx.service"
