@@ -15,7 +15,7 @@
     repo: "{{ modsecurity_repo }}"
     version: "{{ modsecurity_branch }}"
     dest: "{{ modsecurity_src_dir }}"
-    update: yes
+    force: yes
 
 - name: Initialize ModSecurity submodules
   ansible.builtin.command: git submodule update --init --recursive
