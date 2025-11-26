@@ -17,7 +17,6 @@ backend_upstream: "172.16.6.139"
 
 # ✅ 템플릿에서 실제로 쓰는 변수들
 ingress_ip: "172.16.6.139"   # kubectl get svc -n ingress-nginx 해서 나온 EXTERNAL-IP
-ingress_host: "test.local"      # Ingress Host (web-ingress.yaml.j2 에서 쓴 값이랑 동일하게)
 
 # ModSecurity / CRS 권한용
 modsecurity_user: "nginx"
