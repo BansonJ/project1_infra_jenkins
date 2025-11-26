@@ -7,9 +7,8 @@ ingress_name: 'host-test-ingress-v3'   # Ingress 리소스 이름
 # --- MetalLB 설정 ---
 metallb_version: 'v0.15.2'             # MetalLB Manifest 버전
 # MetalLB가 할당할 IP 범위 (예시는 192.168.10.200~210 구간)
-ip_range: '172.16.6.138-172.16.6.139'
+ip_range: '172.16.6.138/32'
 
 # --- Ingress NGINX 설정 ---
 ingress_controller_version: 'controller-v1.14.0'  # Ingress NGINX 버전
 ingress_class: 'nginx'                            # IngressClass 이름
-ingress_host: 'test.local'                        # Host 헤더 (curl 테스트용 도메인)
