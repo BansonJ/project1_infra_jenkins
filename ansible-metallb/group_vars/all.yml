@@ -9,12 +9,12 @@ k8s_kubeconfig_path: "/home/kubeuser/.kube/config"
 #  ↑↑↑ kubeuser 말고 다른 유저 쓰면 여기 꼭 수정
 
 # === MetalLB IP 풀 (LoadBalancer용) ===
-metallb_ip_range: "172.16.6.138-172.16.6.139"
+metallb_ip_range: "172.16.6.89/32"
 #  ↑↑↑ 여기만 네 L2 네트워크에서 "아무도 안 쓰는 IP 대역"으로 수정
 #      DHCP 범위 / 다른 VM / 라우터 IP랑 절대 겹치면 안 됨
 
 # 이 중에서 실제 서비스에 쓸 하나의 IP (WAF가 프록시 타겟으로 사용할 IP)
-metallb_lb_ip: "172.16.6.138"
+metallb_lb_ip: "172.16.6.89"
 #  ↑↑↑ 위 풀 안에서 하나 골라서 지정
 #      my-web-service(Service type=LoadBalancer)의 EXTERNAL-IP로 쓰이게 될 값
 

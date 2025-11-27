@@ -1,7 +1,7 @@
 ---
-- name: 환경별 설정 파일 로드 (pods_vars)
-  ansible.builtin.include_vars:
-    file: "{{ role_path }}/vars/pods_vars.yaml"
+- name: 환경별 설정 파일 로드
+  include_vars:
+    file: "pods_vars.yaml"
 
 # --- 0. Pre-Checks ---
 - name: 01_CHECK - Wait for Kubernetes API to be reachable
@@ -10,7 +10,6 @@
   retries: 50
   delay: 10
   until: k8s_api_status.rc == 0 and '"serverVersion"' in k8s_api_status.stdout
-  changed_when: false
 
 - name: 02_CHECK - Wait for CoreDNS to be Ready
   ansible.builtin.command: >
@@ -18,7 +17,6 @@
     --namespace kube-system
     -l k8s-app=kube-dns
     --timeout=300s
-  changed_when: false
 
 # --- 1. MetalLB Installation ---
 - name: 10_METALLB_GET - Download MetalLB manifests
@@ -35,7 +33,6 @@
     -n metallb-system
     -l component=controller
     --timeout=300s
-  changed_when: false
 
 - name: 13_METALLB_WAIT - Wait for Speaker pods Ready
   ansible.builtin.command: >
@@ -43,51 +40,13 @@
     -n metallb-system
     -l component=speaker
     --timeout=300s
-  changed_when: false
 
 # --- 2. MetalLB Config & Webhook Bypass ---
-- name: 20_METALLB_CONF - Create MetalLB Config template
-  ansible.builtin.template:
-    src: metallb-config.yaml.j2   # 파일명 통일
-    dest: /tmp/metallb-config.yaml
-
 - name: 21_METALLB_WEBHOOK_DEL - Delete ALL MetalLB Webhook Configurations (Bypass Network Error)
   ansible.builtin.shell: |
     kubectl delete validatingwebhookconfigurations metallb-webhook-configuration --ignore-not-found || true
     kubectl delete mutatingwebhookconfigurations metallb-webhook-configuration --ignore-not-found || true
   ignore_errors: yes
-
-- name: 22_METALLB_APPLY_CONFIG - Apply MetalLB Config with Webhook Bypass
-  ansible.builtin.command: kubectl apply -f /tmp/metallb-config.yaml
-  register: metallb_apply_status
-  retries: 5
-  delay: 10
-  # rc 값 대신 Webhook 오류 메시지가 없을 때까지 재시도
-  until: "'failed calling webhook' not in metallb_apply_status.stderr"
-
-# --- 3. NGINX Application Deployment ---
-- name: 30_APP_DEPLOY - Deploy NGINX web application
-  ansible.builtin.template:
-    src: app-deployment.yaml.j2   # 파일명 통일
-    dest: /tmp/app-deployment.yaml
-
-- name: 31_APP_APPLY - Apply app deployment
-  ansible.builtin.command: kubectl apply -f /tmp/app-deployment.yaml
-
-- name: 32_APP_WAIT - Wait for app pods to be Ready
-  ansible.builtin.command: >
-    kubectl wait --for=condition=Ready pod
-    -l app={{ app_name }}
-    --timeout=300s
-  changed_when: false
-
-- name: 33_SERVICE_APPLY - Create web service template
-  ansible.builtin.template:
-    src: web-service.yaml.j2      # 파일명 통일
-    dest: /tmp/web-service.yaml
-
-- name: 34_SERVICE_APPLY - Apply web service
-  ansible.builtin.command: kubectl apply -f /tmp/web-service.yaml
 
 # --- 4. Ingress Controller Installation ---
 - name: 40_INGRESS_INSTALL - Install NGINX Ingress Controller
@@ -101,7 +60,6 @@
     -n ingress-nginx
     -l app.kubernetes.io/component=controller
     --timeout=600s
-  changed_when: false
 
 # --- 5. Ingress Config & Webhook Bypass ---
 - name: 50_INGRESS_WEBHOOK_DEL - Delete ALL Ingress Webhook Configurations (Critical Bypass)
@@ -110,44 +68,10 @@
     kubectl delete mutatingwebhookconfigurations ingress-nginx-admission --ignore-not-found || true
   ignore_errors: yes
 
-- name: 51_INGRESS_PAUSE - Pause for Kubernetes API to fully recognize Webhook deletion (10 seconds)
-  ansible.builtin.pause:
-    seconds: 10
-
-- name: 52_INGRESS_CONF - Deploy Ingress template
-  ansible.builtin.template:
-    src: web-ingress.yaml.j2      # 파일명 통일
-    dest: /tmp/web-ingress.yaml
-
-- name: 53_INGRESS_APPLY - Apply Ingress with Webhook Bypass
-  ansible.builtin.command: kubectl apply -f /tmp/web-ingress.yaml
-  register: ingress_apply_status
-  retries: 5
-  delay: 10
-  # rc 값 대신 Webhook 오류 메시지가 없을 때까지 재시도
-  until: "'failed calling webhook' not in ingress_apply_status.stderr"
-
 # --- 6. Cleanup & Results ---
 - name: 60_CLEANUP - Clean up temp manifests
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
-  loop:
+  with_items:
     - /tmp/metallb.yaml
-    - /tmp/metallb-config.yaml
-    - /tmp/app-deployment.yaml
-    - /tmp/web-service.yaml
-    - /tmp/web-ingress.yaml
-
-- name: 61_RESULT - Get External IP for web Service
-  ansible.builtin.command: >
-    kubectl get svc {{ service_name }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
-  register: service_ip
-  ignore_errors: yes
-  changed_when: false
-
-- name: 62_RESULT - Display Access Information
-  ansible.builtin.debug:
-    msg: >-
-      Service External IP: {{ service_ip.stdout | default('IP 할당 대기 중') }}.
-      curl http://{{ service_ip.stdout | default('<할당된_IP>') }} 로 접근하세요.

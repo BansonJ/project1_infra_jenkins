@@ -13,10 +13,10 @@ modsecurity_lib_path: "/usr/local/modsecurity/lib"
 
 # 🔥 여기서 backend_upstream 을 **Ingress LB IP**로 설정
 #    지금 환경 기준 예시: 192.168.154.151 (ingress-nginx-controller EXTERNAL-IP)
-backend_upstream: "172.16.6.138"
+backend_upstream: "172.16.6.89"
 
 # ✅ 템플릿에서 실제로 쓰는 변수들
-ingress_ip: "172.16.6.139"   # kubectl get svc -n ingress-nginx 해서 나온 EXTERNAL-IP
+ingress_ip: "172.16.6.89"   # kubectl get svc -n ingress-nginx 해서 나온 EXTERNAL-IP
 
 # ModSecurity / CRS 권한용
 modsecurity_user: "nginx"

@@ -15,6 +15,8 @@ k8s_common_ports:
   - { port: 9443, desc: "metalLB" }
   - { port: 7946, desc: "speaker" }
   - { port: 80, desc: "httpd" }
+  - { port: 8081, desc: "argocd-git" }
+  - { port: 8082, desc: "argocd-server" }
 
 # 방화벽 UDP 포트 (Calico VXLAN)
 k8s_udp_ports:

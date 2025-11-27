@@ -41,8 +41,8 @@ pipeline {
                     echo "--- 2. Running WAF Setup ---"
                     sudo -u ansible ansible-playbook -i ansible-waf/${ANSIBLE_INVENTORY_FILE} ansible-waf/waf-playbook.yaml
 
-//                    echo "--- 3. Running MetalLB Setup ---"
-//                    sudo -u ansible ansible-playbook -i ansible-metallb/${ANSIBLE_INVENTORY_FILE} ansible-metallb/metallb-playbook.yaml
+                    echo "--- 3. Running MetalLB Setup ---"
+                    sudo -u ansible ansible-playbook -i ansible-metallb/${ANSIBLE_INVENTORY_FILE} ansible-metallb/metallb-playbook.yaml
 
                     echo "--- 4. Running Monitoring Setup ---"
                     sudo -u ansible ansible-playbook -i ansible-monitoring/${ANSIBLE_INVENTORY_FILE} ansible-monitoring/site.yml

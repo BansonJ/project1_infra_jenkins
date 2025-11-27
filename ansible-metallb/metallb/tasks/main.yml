@@ -1,3 +1,7 @@
----
+--
 - name: Include MetalLB + App + Ingress deployment tasks
   import_tasks: pods.yaml
+
+- name: Include argocd
+  import_tasks: argocd.yaml
+
