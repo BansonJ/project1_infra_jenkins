@@ -55,3 +55,6 @@ ansible-waf.bak/
 .lesshst
 .bash_history
 .ssh/
+ngrok
+key.sh
+.wget-hsts

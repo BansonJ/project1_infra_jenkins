@@ -1,0 +1,20 @@
+- name: Deploy Metrics Server Manifests
+  block:
+    - name: Download official metrics-server manifest
+      get_url:
+        url: https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+        dest: /tmp/metrics-server.yaml
+
+    - name: Apply official manifest (RBAC, SA, Service)
+      command: kubectl apply -f /tmp/metrics-server.yaml
+
+    - name: Copy custom hostnet deployment manifest
+      template:
+        src: metrics-server-hostnet.yaml.j2
+        dest: /tmp/metrics-server-hostnet.yaml
+
+    - name: Apply custom hostnet deployment (Overwrite)
+      command: kubectl apply -f /tmp/metrics-server-hostnet.yaml
+
+  run_once: true
+  delegate_to: "{{ groups['control_plane'][0] }}"

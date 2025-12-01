@@ -5,3 +5,5 @@
 - name: Include argocd
   import_tasks: argocd.yaml
 
+- name: Include Metrics Server Setup
+  import_tasks: metrics-server.yaml

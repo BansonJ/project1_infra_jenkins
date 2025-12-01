@@ -14,13 +14,16 @@ k8s_common_ports:
   - { port: 8443, desc: "ingress" }
   - { port: 9443, desc: "metalLB" }
   - { port: 7946, desc: "speaker" }
-  - { port: 80, desc: "httpd" }
+  - { port: 80, desc: "http" }
   - { port: 8081, desc: "argocd-git" }
   - { port: 8082, desc: "argocd-server" }
+  - { port: 4443, desc: "argo" }
 
 # 방화벽 UDP 포트 (Calico VXLAN)
 k8s_udp_ports:
   - 4789
+  - 8285
+  - 8472
 
 # Control Plane 전용 포트
 k8s_control_plane_ports:
@@ -32,7 +35,6 @@ k8s_control_plane_ports:
 # 모니터링/스토리지용 포트
 k8s_monitoring_ports:
   - { port: "9100",  desc: "Node Exporter" }
-  - { port: "31021", desc: "NodePort(예: Grafana/Prometheus)" }
   - { port: "3100",  desc: "Loki HTTP" }
   - { port: "3000",  desc: "Grafana HTTP" }
   - { port: "9090",  desc: "Prometheus HTTP" }

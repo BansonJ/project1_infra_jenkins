@@ -4,7 +4,6 @@
 
 # 1. 첫 번째 ControlPlane에서 kubeadm init
 - name: "Initialize main control plane"
-  become: true
   ansible.builtin.shell: |
     kubeadm init \
       --control-plane-endpoint "{{ lb_ip }}:6443" \
@@ -49,9 +48,10 @@
     owner: "{{ kube_user }}"
     group: "{{ kube_user }}"
     mode: '0755'
-  run_once: true
-  when: inventory_hostname == groups['control_plane'][0] and kube_user is defined
-
+  when:
+    - inventory_hostname in groups['control_plane']
+    - kube_user is defined
+    
 - name: "Copy kubeconfig to non-root user"
   ansible.builtin.copy:
     remote_src: true
@@ -60,8 +60,9 @@
     owner: "{{ kube_user }}"
     group: "{{ kube_user }}"
     mode: '0644'
-  run_once: true
-  when: inventory_hostname == groups['control_plane'][0] and kube_user is defined
+  when:
+    - inventory_hostname in groups['control_plane']
+    - kube_user is defined
 
 - name: "Create CNI tools directory for non-root user"
   ansible.builtin.file:
@@ -70,8 +71,9 @@
     owner: "{{ kube_user }}"
     group: "{{ kube_user }}"
     mode: '0755'
-  run_once: true
-  when: inventory_hostname == groups['control_plane'][0] and kube_user is defined
+  when:
+    - inventory_hostname in groups['control_plane']
+    - kube_user is defined
 
 # 6. kube-apiserver 준비 상태 확인
 - name: "Wait for kube-apiserver to be ready"

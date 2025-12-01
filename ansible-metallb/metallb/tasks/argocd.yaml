@@ -5,7 +5,7 @@
     dest: /tmp/get-helm-3.sh
     mode: '0755'
 
-- name: 1-2) Helm 스크립트 실행 
+- name: 1-2) Helm 스크립트 실행
   ansible.builtin.command: bash /tmp/get-helm-3.sh
   environment:
     PATH: "/usr/local/bin:/usr/bin:/usr/sbin:/bin:/sbin"
@@ -29,10 +29,10 @@
   failed_when: false
 
 - name: 3-2) Argocd 설치
-  ansible.builtin.command: > 
-    helm install argocd argo/argo-cd 
-    --version 3.2.0 
-    --namespace argocd 
+  ansible.builtin.command: >
+    helm install argocd argo/argo-cd
+    --version 3.2.1
+    --namespace argocd
     --create-namespace
   when: argocd_exists.rc != 0
 
