@@ -11,6 +11,7 @@
     PATH: "/usr/local/bin:/usr/bin:/usr/sbin:/bin:/sbin"
 
 - name: 1-3) Helm 바이너리 심볼릭 링크 생성
+  become: true
   ansible.builtin.file:
     src: /usr/local/bin/helm
     dest: /usr/bin/helm
@@ -23,13 +24,11 @@
   ansible.builtin.command: helm repo update
 
 - name: 3-1) ArgoCD 설치 확인
-  become: yes
   ansible.builtin.command: helm status argocd -n argocd
   register: argocd_exists
   failed_when: false
 
 - name: 3-2) Argocd 설치
-  become: yes
   ansible.builtin.command: > 
     helm install argocd argo/argo-cd 
     --version 3.2.0 
@@ -38,13 +37,11 @@
   when: argocd_exists.rc != 0
 
 - name: 4-1) ArgoCD Image Updater 설치 확인
-  become: yes
   ansible.builtin.command: helm status argocd-image-updater -n argocd
   register: image_updater_status
   failed_when: false
 
 - name: 4-2) Argocd Imager Updater 설치
-  become: yes
   ansible.builtin.command: >
     helm install argocd-image-updater argo/argocd-image-updater
     --version 0.12.3
