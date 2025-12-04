@@ -7,11 +7,13 @@
       ansible.builtin.rpm_key:
         state: present
         key: https://repo.mysql.com/RPM-GPG-KEY-mysql
+      become: yes
 
     - name: 1-2) GPG Key 등록(2022)
       ansible.builtin.rpm_key:
         state: present
         key: https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
+      become: yes
 
     - name: 2) MySQL Repo 등록
       ansible.builtin.get_url:
