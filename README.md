@@ -1,2 +1,2 @@
 # project1_infra_jenkins
-Soldesk project using ansible tool
+Soldesk project using ansible
