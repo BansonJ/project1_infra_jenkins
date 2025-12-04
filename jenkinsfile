@@ -1,4 +1,4 @@
-// Jenkinsfile (Declarative Pipeline)
+// jenkinsfile (Declarative Pipeline)
 
 pipeline {
     // 1. 에이전트 설정: 파이프라인이 실행될 Jenkins 에이전트를 지정합니다.
@@ -7,13 +7,13 @@ pipeline {
     // 2. 환경 변수 설정: Ansible 실행에 필요한 변수를 정의합니다.
     environment {
         // Jenkins Credential ID (ansible 유저의 SSH 개인 키)
-        ANSIBLE_SSH_CREDENTIALS = 'ansible_user_key' 
+        ANSIBLE_SSH_CREDENTIALS = 'ansible_user_key'
         ANSIBLE_INVENTORY_FILE = 'inventory'
     }
 
     // 3. 옵션 설정
     options {
-        // 이전 빌드 결과와 관계없이 workspace를 정리 (권장)
+        // 이전 빌드 결과와 관계없이 workspace를 정리
         skipDefaultCheckout()
     }
 
@@ -34,18 +34,21 @@ pipeline {
                 sshagent(credentials: ["${ANSIBLE_SSH_CREDENTIALS}"]) {
                     sh """
                     # sudo -u ansible로 권한을 전환하고, --key-file 없이 Ansible 실행
-                    
+
                     echo "--- 1. Running K8s Base Setup ---"
                     sudo -u ansible ansible-playbook -i ansible/${ANSIBLE_INVENTORY_FILE} ansible/k8s-playbook.yaml
 
-                    echo "--- 2. Running WAF Setup ---"
-                    sudo -u ansible ansible-playbook -i ansible-waf/${ANSIBLE_INVENTORY_FILE} ansible-waf/waf-playbook.yaml
-
-                    echo "--- 3. Running MetalLB Setup ---"
+                    echo "--- 2. Running MetalLB Setup ---"
                     sudo -u ansible ansible-playbook -i ansible-metallb/${ANSIBLE_INVENTORY_FILE} ansible-metallb/metallb-playbook.yaml
+
+                    echo "--- 3. Running WAF Setup ---"
+                    sudo -u ansible ansible-playbook -i ansible-waf/${ANSIBLE_INVENTORY_FILE} ansible-waf/waf-playbook.yaml
 
                     echo "--- 4. Running Monitoring Setup ---"
                     sudo -u ansible ansible-playbook -i ansible-monitoring/${ANSIBLE_INVENTORY_FILE} ansible-monitoring/site.yml
+                    
+                    echo "--- 5. Running DB Setup ---"
+                    sudo -u ansible ansible-playbook -i ansible-db/${ANSIBLE_INVENTORY_FILE} ansible-db/db.yaml
                     """
                 }
             }
@@ -59,10 +62,10 @@ pipeline {
             echo "Ansible Pipeline finished."
         }
         success {
-            echo "Deployment successful! 🚀"
+            echo "Deployment successful!"
         }
         failure {
-            echo "Deployment failed! Check logs. ❌"
+            echo "Deployment failed! Check logs."
         }
     }
 }

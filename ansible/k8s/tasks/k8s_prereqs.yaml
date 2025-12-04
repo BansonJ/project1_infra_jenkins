@@ -124,14 +124,14 @@
     - ansible_facts.services['firewalld.service'].state == 'running'
     - inventory_hostname in groups['haproxy']
 
-- name: "5-4. firewalld 모듈을 사용하여 masquerade 활성화"
-  become: true
-  ansible.posix.firewalld:
-    zone: public
-    service: null
-    masquerade: yes
-    permanent: yes
-    state: enabled
+#- name: "5-4. firewalld 모듈을 사용하여 masquerade 활성화"
+#  become: true
+#  ansible.posix.firewalld:
+#    zone: public
+#    service: null
+#    masquerade: yes
+#    permanent: yes
+#    state: enabled
 
 - name: "5-5. 방화벽 설정 재로드"
   become: true

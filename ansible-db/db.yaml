@@ -1,0 +1,62 @@
+---
+- name: DB 구축
+  hosts: dbservers     
+  tasks:
+
+    - name: 1-1) GPG Key 등록(최신)
+      ansible.builtin.rpm_key:
+        state: present
+        key: https://repo.mysql.com/RPM-GPG-KEY-mysql
+
+    - name: 1-2) GPG Key 등록(2022)
+      ansible.builtin.rpm_key:
+        state: present
+        key: https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
+
+    - name: 2) MySQL Repo 등록
+      ansible.builtin.get_url:
+        url: https://repo.mysql.com/mysql80-community-release-el9-1.noarch.rpm
+        dest: /tmp/mysql80-community-release-el9-1.noarch.rpm
+        mode: '0644'
+
+    - name: 3) MySQL Repo  설치
+      ansible.builtin.yum:
+        name: /tmp/mysql80-community-release-el9-1.noarch.rpm
+        state: present
+
+    - name: 4-1) GPG Key 체크 X
+      ansible.builtin.replace:
+        path: /etc/yum.repos.d/mysql-community.repo
+        regexp: '^gpgcheck=.*'
+        replace: 'gpgcheck=0'
+
+    - name: 4-2) GPG Key 체크 X(repo)
+      ansible.builtin.replace:
+        path: /etc/yum.repos.d/mysql-community.repo
+        regexp: '^repo_gpgcheck=.*'
+        replace: 'repo_gpgcheck=0'
+
+    - name: 5-1) 중복 방지(gpgcheck)
+      ansible.builtin.lineinfile:
+        path: /etc/yum.repos.d/mysql-community.repo
+        insertafter: '^\[.*\]'
+        line: 'gpgcheck=0'
+        state: present
+
+    - name: 5-2) 중복 방지(repo)
+      ansible.builtin.lineinfile:
+        path: /etc/yum.repos.d/mysql-community.repo
+        insertafter: '^\[.*\]'
+        line: 'repo_gpgcheck=0'
+        state: present
+
+    - name: 6) mysql 설치
+      ansible.builtin.dnf:
+        name:
+          - mysql-community-server
+        state: present
+
+    - name: 7) MySQL 서비스 시작 및 등록
+      ansible.builtin.systemd:
+        state: started
+        name: mysqld

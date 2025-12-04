@@ -1,0 +1,3 @@
+[dbservers]
+DB1 ansible_user=db1
+DB2 ansible_user=db2
