@@ -47,8 +47,8 @@ pipeline {
                     echo "--- 4. Running Monitoring Setup ---"
                     sudo -u ansible ansible-playbook -i ansible-monitoring/${ANSIBLE_INVENTORY_FILE} ansible-monitoring/site.yml
                     
-                    echo "--- 5. Running DB Setup ---"
-                    sudo -u ansible ansible-playbook -i ansible-db/${ANSIBLE_INVENTORY_FILE} ansible-db/db.yaml
+                    #echo "--- 5. Running DB Setup ---"
+                    #sudo -u ansible ansible-playbook -i ansible-db/${ANSIBLE_INVENTORY_FILE} ansible-db/db.yaml
                     """
                 }
             }
