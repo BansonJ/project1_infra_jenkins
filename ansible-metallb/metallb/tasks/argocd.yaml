@@ -31,7 +31,6 @@
 - name: 3-2) Argocd 설치
   ansible.builtin.command: >
     helm install argocd argo/argo-cd
-    --version 3.2.1
     --namespace argocd
     --create-namespace
   when: argocd_exists.rc != 0
