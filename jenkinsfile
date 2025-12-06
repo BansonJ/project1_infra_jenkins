@@ -33,22 +33,19 @@ pipeline {
                 // Jenkins Credential ID에 해당하는 키를 메모리(SSH Agent)에 로드합니다.
                 sshagent(credentials: ["${ANSIBLE_SSH_CREDENTIALS}"]) {
                     sh """
-                    #sudo -u ansible로 권한을 전환하고, --key-file 없이 Ansible 실행
-
                     echo "--- 1. Running K8s Base Setup ---"
                     sudo -u ansible ansible-playbook -i ansible/${ANSIBLE_INVENTORY_FILE} ansible/k8s-playbook.yaml
 
                     echo "--- 2. Running MetalLB Setup ---"
                     sudo -u ansible ansible-playbook -i ansible-metallb/${ANSIBLE_INVENTORY_FILE} ansible-metallb/metallb-playbook.yaml
+                    #echo "--- 5. Running DB Setup ---"
+                    #sudo -u ansible ansible-playbook -i ansible-db/${ANSIBLE_INVENTORY_FILE} ansible-db/db.yaml
 
                     echo "--- 3. Running WAF Setup ---"
                     sudo -u ansible ansible-playbook -i ansible-waf/${ANSIBLE_INVENTORY_FILE} ansible-waf/waf-playbook.yaml
 
-                    #echo "--- 4. Running Monitoring Setup ---"
-                    #sudo -u ansible ansible-playbook -i ansible-monitoring/${ANSIBLE_INVENTORY_FILE} ansible-monitoring/site.yml
-                    
-                    #echo "--- 5. Running DB Setup ---"
-                    #sudo -u ansible ansible-playbook -i ansible-db/${ANSIBLE_INVENTORY_FILE} ansible-db/db.yaml
+                    echo "--- 4. Running Monitoring Setup ---"
+                    sudo -u ansible ansible-playbook -i ansible-monitoring/${ANSIBLE_INVENTORY_FILE} ansible-monitoring/site.yml
                     """
                 }
             }
